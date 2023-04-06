@@ -100,6 +100,24 @@
     <ClCompile Include="wechat_qrcode.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="shapematcher.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ShapeMatcher\cuda_icp\icp.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ShapeMatcher\cuda_icp\scene\common.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ShapeMatcher\cuda_icp\scene\edge_scene\edge_scene.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ShapeMatcher\line2Dup.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ShapeMatcher\test.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bgsegm.h">
@@ -377,6 +395,9 @@
     </ClInclude>
     <ClInclude Include="imgproc_LineSegmentDetector.h">
       <Filter>Header Files\imgproc</Filter>
+    </ClInclude>
+    <ClInclude Include="ShapeMatcher\cuda_icp\scene\common.h">
+      <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
