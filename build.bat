@@ -1,0 +1,1 @@
+msbuild OpenCvSharp.sln /p:Configuration=Release /p:Platform=x64
