@@ -330,7 +330,6 @@ copy "$(SolutionDir)opencv_files\opencv470_win_x64\x64\vc17\bin\opencv_videoio_f
     <ClInclude Include="photo_HDR.h" />
     <ClInclude Include="photo_Tonemap.h" />
     <ClInclude Include="quality.h" />
-    <ClInclude Include="ShapeMatcher\cuda_icp\scene\common.h" />
     <ClInclude Include="shape_ShapeDistanceExtractor.h" />
     <ClInclude Include="std_string.h" />
     <ClInclude Include="std_vector_nesting.h" />
