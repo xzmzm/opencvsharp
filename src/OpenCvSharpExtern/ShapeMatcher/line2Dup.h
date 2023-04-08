@@ -5,7 +5,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <map>
 
-#include "mipp.h"  // for SIMD in different platforms
+#include "MIPP/mipp.h"  // for SIMD in different platforms
 
 namespace line2Dup
 {

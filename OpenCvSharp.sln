@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.28307.2092
+# Visual Studio Version 17
+VisualStudioVersion = 17.4.33122.133
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{E048D213-B3B9-453F-9A41-29FDEB0D496B}"
 EndProject
@@ -12,9 +12,12 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		.editorconfig = .editorconfig
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenCvSharpEx", "src\OpenCvSharpEx\OpenCvSharpEx.csproj", "{8F1A143E-AFEE-4930-9EDC-EE17C62FE3A9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OpenCvSharpEx", "src\OpenCvSharpEx\OpenCvSharpEx.csproj", "{8F1A143E-AFEE-4930-9EDC-EE17C62FE3A9}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenCvSharpEx.Sample", "src\OpenCvSharpEx.Sample\OpenCvSharpEx.Sample.csproj", "{667C4F5A-BC84-4E33-9080-75F4E85F6051}"
+	ProjectSection(ProjectDependencies) = postProject
+		{8E7279F8-F801-4672-B42F-1ED2C68B16A4} = {8E7279F8-F801-4672-B42F-1ED2C68B16A4}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

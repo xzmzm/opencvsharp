@@ -174,19 +174,23 @@ void ShapeMatcher::search(cv::Mat* image, cv::Point2d* retPoint, double* angle)
             double y = match.y - templ[0].tl_y + train_img_half_width;
             double new_x = result.transformation_[0][0] * x + result.transformation_[0][1] * y + result.transformation_[0][2];
             double new_y = result.transformation_[1][0] * x + result.transformation_[1][1] * y + result.transformation_[1][2];
+            std::cout << "x: " << x << std::endl;
+            std::cout << "y: " << y << std::endl;
+            std::cout << "new_x: " << new_x << std::endl;
+            std::cout << "new_y: " << new_y << std::endl;
             *retPoint = cv::Point2d(new_x, new_y);
         }
         *angle = icp_diff_angle;
 
         break;
 
-        //std::cout << "\n---------------" << std::endl;
-        //std::cout << "scale: " << std::sqrt(result.transformation_[0][0] * result.transformation_[0][0] +
-        //    result.transformation_[1][0] * result.transformation_[1][0]) << std::endl;
-        //std::cout << "init diff angle: " << ori_diff_angle << std::endl;
-        //std::cout << "improved angle: " << improved_angle << std::endl;
-        //std::cout << "match.template_id: " << match.template_id << std::endl;
-        //std::cout << "match.similarity: " << match.similarity << std::endl;
+        std::cout << "\n---------------" << std::endl;
+        std::cout << "scale: " << std::sqrt(result.transformation_[0][0] * result.transformation_[0][0] +
+            result.transformation_[1][0] * result.transformation_[1][0]) << std::endl;
+        std::cout << "init diff angle: " << ori_diff_angle << std::endl;
+        std::cout << "improved angle: " << improved_angle << std::endl;
+        std::cout << "match.template_id: " << match.template_id << std::endl;
+        std::cout << "match.similarity: " << match.similarity << std::endl;
     }
 
     //std::cout << "test end" << std::endl << std::endl;
