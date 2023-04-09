@@ -3,7 +3,8 @@
 #include <iostream>
 #include <assert.h>
 #include <chrono>
-
+#include <vector>
+#include <algorithm>
 #include "ShapeMatcher/cuda_icp/icp.h"
 #include "shapematcher.h"
 
@@ -203,5 +204,14 @@ void ShapeMatcher::setAngleRange(double minAngle, double maxAngle, double angleS
     this->minAngle = minAngle;
     this->maxAngle = maxAngle;
     this->angleStep = angleStep;
+}
+
+std::vector<std::vector<line2Dup::Feature>> ShapeMatcher::getFeatures()
+{
+    auto templates = this->detector->getTemplates("test", 0);
+    std::vector<std::vector<line2Dup::Feature>> features(templates.size());
+    std::transform(templates.begin(), templates.end(), features.begin(),
+        [](const auto& t) { return t.features; });
+    return features;
 }
 

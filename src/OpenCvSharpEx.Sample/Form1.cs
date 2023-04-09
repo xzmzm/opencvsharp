@@ -49,5 +49,9 @@ namespace OpenCvSharpEx.Sample
             }
 
         }
+        protected override void OnPaint(PaintEventArgs e)
+        {
+
+        }
     }
 }

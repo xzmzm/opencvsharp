@@ -20,6 +20,8 @@ public:
     void preprocess();
     void setAngleRange(double minAngle, double maxAngle, double angleStep);
 
+    std::vector<std::vector<line2Dup::Feature>> getFeatures();
+
     double minAngle;
     double maxAngle;
     double angleStep;
@@ -56,6 +58,27 @@ CVAPI(ExceptionStatus) shapematcher_ShapeMatcher_search(ShapeMatcher* obj, cv::M
 {
     BEGIN_WRAP
     obj->search(image, retPoint, angle);
+    END_WRAP
+}
+CVAPI(ExceptionStatus) shapematcher_ShapeMatcher_getFeaturesCount(ShapeMatcher* obj, int templateIndex, int* featuresCount)
+{
+    BEGIN_WRAP
+    auto features = obj->getFeatures();
+    if (templateIndex < features.size())
+        *featuresCount = (int)features[templateIndex].size();
+    else
+        *featuresCount = -1;
+    END_WRAP
+}
+CVAPI(ExceptionStatus) shapematcher_ShapeMatcher_getFeatures(ShapeMatcher* obj, int templateIndex, line2Dup::Feature* features)
+{
+    BEGIN_WRAP
+    auto f1 = obj->getFeatures();
+    if (templateIndex < f1.size())
+    {
+        auto f = f1[templateIndex];
+        std::copy(f.begin(), f.end(), features);
+    }
     END_WRAP
 }
 

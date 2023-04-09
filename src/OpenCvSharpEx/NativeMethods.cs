@@ -33,5 +33,9 @@ namespace OpenCvSharpEx.Internal
         public static extern ExceptionStatus shapematcher_ShapeMatcher_teach(IntPtr shapeMatcherObj, IntPtr pattern);
         [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern ExceptionStatus shapematcher_ShapeMatcher_search(IntPtr shapeMatcherObj, IntPtr image, out OpenCvSharp.Point2d location, out double angle);
-    }
+        [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern ExceptionStatus shapematcher_ShapeMatcher_getFeaturesCount(IntPtr shapeMatcherObj, int templateIndex, out int featuresCount);
+        [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern ExceptionStatus shapematcher_ShapeMatcher_getFeatures(IntPtr shapeMatcherObj, int templateIndex, [Out] Feature[] features);
+  }
 }

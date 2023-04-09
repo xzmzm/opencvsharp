@@ -37,6 +37,17 @@ namespace OpenCvSharpEx
         {
             var ret = NativeMethods.shapematcher_ShapeMatcher_new(pattern.CvPtr, this.MinAngle, this.MaxAngle, this.AngleStep, this.AcceptancePercentage, out this.shapeMatcherObj);
         }
+        public Feature[] GetFeatures(int templateIndex)
+        {
+            NativeMethods.shapematcher_ShapeMatcher_getFeaturesCount(this.shapeMatcherObj, templateIndex, out var featuresCount);
+            if (featuresCount > 0)
+            {
+                var features = new Feature[featuresCount];
+                NativeMethods.shapematcher_ShapeMatcher_getFeatures(this.shapeMatcherObj, templateIndex, features);
+                return features;
+            }
+            else return new Feature[0];
+        }
         public void PreprocessPattern()
         {
 
@@ -73,5 +84,12 @@ namespace OpenCvSharpEx
         public RotatedRect RotatedBounds { get; set; }
         public Rect2d Bounds { get; set; }
         public double Score { get; set; }
+    }
+    public struct Feature
+    {
+        public int x;
+        public int y;
+        public int label;
+        public float theta;
     }
 }
