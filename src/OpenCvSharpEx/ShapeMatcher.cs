@@ -61,6 +61,11 @@ namespace OpenCvSharpEx
                 Angle = angle
             };
         }
+        public Mat GetPaddedPattern(double angle)
+        {
+            var ret = NativeMethods.shapematcher_ShapeMatcher_getPaddedPattern(this.shapeMatcherObj, angle, out var ptr);
+            return new Mat(ptr);
+        }
         ~ShapeMatcher()
         {
             this.Dispose();

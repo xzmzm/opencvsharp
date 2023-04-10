@@ -16,6 +16,7 @@ namespace OpenCvSharpEx.Sample
         static void Main()
         {
             SetDllDirectory(@"Q:\src\vision\opencvsharp\src\Release\x64");
+            SetDllDirectory(@"D:\src\vision\opencvsharp\src\Release\x64");
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new Form1());

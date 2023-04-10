@@ -245,7 +245,11 @@ public:
         cv::Mat dst;
 
         cv::Point2f center(src.cols/2.0f, src.rows/2.0f);
-        cv::Mat rot_mat = cv::getRotationMatrix2D(center, angle, scale);
+        cv::Matx23d rot_mat = cv::getRotationMatrix2D(center, angle, scale);
+        // cv::Mat rot_mat = cv::getRotationMatrix2D(center, angle, scale);
+        // https://github.com/opencv/opencv/issues/11784
+        rot_mat(0, 2) += (rot_mat(0, 0) + rot_mat(0, 1) - 1) / 2;
+        rot_mat(1, 2) += (rot_mat(1, 0) + rot_mat(1, 1) - 1) / 2;
         cv::warpAffine(src, dst, rot_mat, src.size());
 
         return dst;

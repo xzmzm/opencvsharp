@@ -36,17 +36,24 @@ ShapeMatcher::~ShapeMatcher()
 
 void ShapeMatcher::teach(cv::Mat* pattern)
 {
-    pattern->copyTo(this->pattern);
+    if (pattern->channels() == 1)
+        this->pattern = *pattern;
+    //pattern->copyTo();
+    else
+        cv::cvtColor(*pattern, this->pattern, pattern->channels() == 3 ? cv::COLOR_RGB2GRAY : cv::COLOR_RGBA2GRAY);
+
     cv::Mat mask(this->pattern.size(), CV_8UC1, { 255 });
     this->detector = cv::makePtr<line2Dup::Detector>(128, std::vector<int>{ 4, 8 });
 
     // padding to avoid rotating out
-    int padding = (int)ceil(0.5 * (sqrt(mask.cols * mask.cols + mask.rows * mask.rows) - MAX(mask.cols, mask.rows)));
-    cv::Mat padded_img = cv::Mat(mask.rows + 2 * padding, mask.cols + 2 * padding, mask.type(), cv::Scalar::all(0));
-    this->pattern.copyTo(padded_img(cv::Rect(padding, padding, mask.cols, mask.rows)));
+    int half = (int)ceil(0.5 * sqrt(mask.cols * mask.cols + mask.rows * mask.rows));
+    int padc = half - (mask.cols + 1) / 2;
+    int padr = half - (mask.rows + 1) / 2;
+    cv::Mat padded_img = cv::Mat(mask.rows + 2 * padr, mask.cols + 2 * padc, mask.type(), cv::Scalar::all(0));
+    this->pattern.copyTo(padded_img(cv::Rect(padc, padr, mask.cols, mask.rows)));
 
-    cv::Mat padded_mask = cv::Mat(mask.rows + 2 * padding, mask.cols + 2 * padding, mask.type(), cv::Scalar::all(0));
-    mask.copyTo(padded_mask(cv::Rect(padding, padding, mask.cols, mask.rows)));
+    cv::Mat padded_mask = cv::Mat(mask.rows + 2 * padr, mask.cols + 2 * padc, mask.type(), cv::Scalar::all(0));
+    mask.copyTo(padded_mask(cv::Rect(padc, padr, mask.cols, mask.rows)));
 
     this->shapes = cv::makePtr<shape_based_matching::shapeInfo_producer>(padded_img, padded_mask);
     this->shapes->angle_range = { (float)this->minAngle, (float)this->maxAngle };
@@ -64,14 +71,27 @@ void ShapeMatcher::teach(cv::Mat* pattern)
         }
     }
 }
+cv::Mat* ShapeMatcher::getPaddedPattern(double angle)
+{ 
+    shape_based_matching::shapeInfo_producer::Info info((float)angle, 1.0f);
+    auto paddedPattern = new cv::Mat;
+    *paddedPattern = this->shapes->src_of(info);
+    return paddedPattern;
+}
+
 void ShapeMatcher::search(cv::Mat* image, cv::Point2d* retPoint, double* angle)
 {
     std::vector<std::string> ids;
     ids.push_back("test");
-    int padding = (int)ceil(0.5 * (sqrt(this->pattern.cols * this->pattern.cols + this->pattern.rows * this->pattern.rows) - MAX(this->pattern.cols, this->pattern.rows)));
-    cv::Mat padded_img = cv::Mat(image->rows + 2 * padding,
-        image->cols + 2 * padding, image->type(), cv::Scalar::all(0));
-    image->copyTo(padded_img(cv::Rect(padding, padding, image->cols, image->rows)));
+    int half = (int)ceil(0.5 * (sqrt(this->pattern.cols * this->pattern.cols + this->pattern.rows * this->pattern.rows)));
+    int padc = half - (this->pattern.cols + 1) / 2;
+    int padr = half - (this->pattern.rows + 1) / 2;
+    cv::Mat padded_img = cv::Mat(image->rows + 2 * padr,
+        image->cols + 2 * padc, image->type(), cv::Scalar::all(0));
+    if (image->channels() == 1)
+        image->copyTo(padded_img(cv::Rect(padc, padr, image->cols, image->rows)));
+    else
+        cv::cvtColor(*image, padded_img(cv::Rect(padc, padr, image->cols, image->rows)), image->channels() == 3 ? cv::COLOR_RGB2GRAY : cv::COLOR_RGBA2GRAY);
 
     int stride = 16;
     int n = padded_img.rows / stride;
@@ -126,7 +146,7 @@ void ShapeMatcher::search(cv::Mat* image, cv::Point2d* retPoint, double* angle)
 
         // scaling won't affect this, because it has been determined by warpAffine
         // cv::warpAffine(src, dst, rot_mat, src.size()); last param
-        float train_img_half_width = this->pattern.cols / 2.0f + padding;
+        float train_img_half_width = half; // this->pattern.cols / 2.0f + padding;
 
         // center x,y of train_img in test img
         float x = match.x - templ[0].tl_x + train_img_half_width;
@@ -208,10 +228,20 @@ void ShapeMatcher::setAngleRange(double minAngle, double maxAngle, double angleS
 
 std::vector<std::vector<line2Dup::Feature>> ShapeMatcher::getFeatures()
 {
-    auto templates = this->detector->getTemplates("test", 0);
-    std::vector<std::vector<line2Dup::Feature>> features(templates.size());
-    std::transform(templates.begin(), templates.end(), features.begin(),
-        [](const auto& t) { return t.features; });
+    int n = this->detector->numTemplates("test");
+    std::cout << "n:" << n << std::endl;
+    std::vector<std::vector<line2Dup::Feature>> features(n);
+    for (int i = 0; i < n; ++i)
+    {
+        auto templates = this->detector->getTemplates("test", i);
+        auto t = templates[0];
+        features[i] = t.features;
+        for (auto& ff : features[i])
+        {
+            ff.x += t.tl_x;
+            ff.y += t.tl_y;
+        }
+    }
     return features;
 }
 

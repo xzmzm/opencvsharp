@@ -19,7 +19,7 @@ public:
     void search(cv::Mat* image, cv::Point2d* retPoint, double* angle);
     void preprocess();
     void setAngleRange(double minAngle, double maxAngle, double angleStep);
-
+    cv::Mat* getPaddedPattern(double angle);
     std::vector<std::vector<line2Dup::Feature>> getFeatures();
 
     double minAngle;
@@ -68,6 +68,13 @@ CVAPI(ExceptionStatus) shapematcher_ShapeMatcher_getFeaturesCount(ShapeMatcher* 
         *featuresCount = (int)features[templateIndex].size();
     else
         *featuresCount = -1;
+    END_WRAP
+}
+CVAPI(ExceptionStatus) shapematcher_ShapeMatcher_getPaddedPattern(ShapeMatcher* obj, double angle, cv::Mat** returnValue)
+{
+    BEGIN_WRAP
+    auto paddedPattern = obj->getPaddedPattern(angle);
+    *returnValue = paddedPattern;
     END_WRAP
 }
 CVAPI(ExceptionStatus) shapematcher_ShapeMatcher_getFeatures(ShapeMatcher* obj, int templateIndex, line2Dup::Feature* features)
