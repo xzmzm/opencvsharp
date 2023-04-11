@@ -15,8 +15,8 @@ class ShapeMatcher
 public:
     ShapeMatcher();
     ~ShapeMatcher();
-    void teach(cv::Mat* pattern);
-    void search(cv::Mat* image, cv::Point2d* retPoint, double* angle);
+    void teach(cv::Mat* pattern, int nFeatures, int pyramidLevels);
+    void search(cv::Mat* image, bool refineResults, bool useFusion, cv::Point2d* retPoint, double* angle, double* score, int* templateID);
     void preprocess();
     void setAngleRange(double minAngle, double maxAngle, double angleStep);
     cv::Mat* getPaddedPattern(double angle);
@@ -32,12 +32,12 @@ public:
 
 };
 
-CVAPI(ExceptionStatus) shapematcher_ShapeMatcher_new(cv::Mat* pattern, double minAngle, double maxAngle, double angleStep, double acceptancePercentage, ShapeMatcher **returnValue)
+CVAPI(ExceptionStatus) shapematcher_ShapeMatcher_new(cv::Mat* pattern, double minAngle, double maxAngle, double angleStep, double acceptancePercentage, int nFeatures, int pyramidLevels, ShapeMatcher **returnValue)
 {
     BEGIN_WRAP
     auto shapeMatcher = new ShapeMatcher;
     shapeMatcher->setAngleRange(minAngle, maxAngle, angleStep);
-    shapeMatcher->teach(pattern);
+    shapeMatcher->teach(pattern, nFeatures, pyramidLevels);
     shapeMatcher->preprocess();
     *returnValue = shapeMatcher;
     END_WRAP
@@ -48,16 +48,22 @@ CVAPI(ExceptionStatus) shapematcher_ShapeMatcher_delete(ShapeMatcher* obj)
     delete obj;
     END_WRAP
 }
-CVAPI(ExceptionStatus) shapematcher_ShapeMatcher_teach(ShapeMatcher* obj, cv::Mat* pattern)
+CVAPI(ExceptionStatus) shapematcher_ShapeMatcher_teach(ShapeMatcher* obj, cv::Mat* pattern, int nFeatures, int pyramidLevels)
 {
     BEGIN_WRAP
-    obj->teach(pattern);
+    obj->teach(pattern, nFeatures, pyramidLevels);
     END_WRAP
 }
-CVAPI(ExceptionStatus) shapematcher_ShapeMatcher_search(ShapeMatcher* obj, cv::Mat* image, cv::Point2d* retPoint, double* angle)
+CVAPI(ExceptionStatus) shapematcher_ShapeMatcher_search(ShapeMatcher* obj, cv::Mat* image, bool refineResults, cv::Point2d* retPoint, double* angle, double* score, int* templateID)
 {
     BEGIN_WRAP
-    obj->search(image, retPoint, angle);
+    obj->search(image, refineResults, false, retPoint, angle, score, templateID);
+    END_WRAP
+}
+CVAPI(ExceptionStatus) shapematcher_ShapeMatcher_searchFusion(ShapeMatcher* obj, cv::Mat* image, bool refineResults, cv::Point2d* retPoint, double* angle, double* score, int* templateID)
+{
+    BEGIN_WRAP
+    obj->search(image, refineResults, true, retPoint, angle, score, templateID);
     END_WRAP
 }
 CVAPI(ExceptionStatus) shapematcher_ShapeMatcher_getFeaturesCount(ShapeMatcher* obj, int templateIndex, int* featuresCount)

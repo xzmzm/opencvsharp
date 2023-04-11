@@ -154,6 +154,7 @@ public:
     std::vector<Match> match(cv::Mat sources, float threshold,
                                                      const std::vector<std::string> &class_ids = std::vector<std::string>(),
                                                      const cv::Mat masks = cv::Mat()) const;
+    std::vector<Match> match_fusion(cv::Mat source, float threshold, const std::vector<std::string> &class_ids = std::vector<std::string>(), const cv::Mat mask = cv::Mat()) const;
 
     int addTemplate(const cv::Mat sources, const std::string &class_id,
                                     const cv::Mat &object_mask, int num_features = 0);
