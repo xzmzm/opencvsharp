@@ -118,6 +118,9 @@
     <ClCompile Include="ShapeMatcher\test.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="RotatedPatternMatcher\rotatedpatternmatcher.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bgsegm.h">
@@ -395,6 +398,9 @@
     </ClInclude>
     <ClInclude Include="imgproc_LineSegmentDetector.h">
       <Filter>Header Files\imgproc</Filter>
+    </ClInclude>
+    <ClInclude Include="RotatedPatternMatcher\rotatedpatternmatcher.h">
+      <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

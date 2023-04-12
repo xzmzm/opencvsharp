@@ -94,5 +94,5 @@ CVAPI(ExceptionStatus) shapematcher_ShapeMatcher_getFeatures(ShapeMatcher* obj, 
     }
     END_WRAP
 }
-
+#pragma endregion
 #endif
