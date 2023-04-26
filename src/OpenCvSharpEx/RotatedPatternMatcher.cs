@@ -37,7 +37,7 @@ namespace OpenCvSharpEx
         {
             get;
             set;
-        } = 1000;
+        } = 256;
 
         public void Teach(Mat pattern)
         {
@@ -52,7 +52,7 @@ namespace OpenCvSharpEx
             if (this.rotatedPatternMatcherObj == IntPtr.Zero)
                 throw new OpenCvSharpException("No pattern is taught yet.");
             double score = this.AcceptancePercentage;
-            var ret = NativeMethods.rotatedPatternMatcher_RotatedPatternMatcher_search(this.rotatedPatternMatcherObj, image.CvPtr, out var location, out var angle, ref score);
+            var ret = NativeMethods.rotatedPatternMatcher_RotatedPatternMatcher_search(this.rotatedPatternMatcherObj, image.CvPtr, this.MinAngle, this.MaxAngle, this.AngleStep, this.MinReducedArea, out var location, out var angle, ref score);
             return new RotationPatternMatcherResults()
             {
                 Location = location,

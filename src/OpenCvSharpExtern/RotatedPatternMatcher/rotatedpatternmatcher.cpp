@@ -476,6 +476,7 @@ void MatchTemplate(cv::Mat& matSrc, s_TemplData* pTemplData, cv::Mat& matResult,
         cv::Mat& matTemplate = pTemplData->vecPyramid[iLayer];
 
         int  t_r_end = matTemplate.rows, t_r = 0;
+        size_t step = matTemplate.step1();
         for (int r = 0; r < matResult.rows; r++)
         {
             float* r_matResult = matResult.ptr<float>(r);
@@ -485,7 +486,7 @@ void MatchTemplate(cv::Mat& matSrc, s_TemplData* pTemplData, cv::Mat& matResult,
             {
                 r_template = matTemplate.ptr<uchar>();
                 r_sub_source = r_source;
-                for (t_r = 0; t_r < t_r_end; ++t_r, r_sub_source += matSrc.cols, r_template += matTemplate.cols)
+                for (t_r = 0; t_r < t_r_end; ++t_r, r_sub_source += matSrc.cols, r_template += step)
                 {
                     *r_matResult = *r_matResult + IM_Conv_SIMD(r_template, r_sub_source, matTemplate.cols);
                 }
@@ -529,7 +530,10 @@ void RotatedPatternMatcher::setAngleRange(double minAngle, double maxAngle, doub
 void RotatedPatternMatcher::teach(cv::Mat* pattern, int minReducedArea)
 {
     m_iMinReduceArea = minReducedArea;
-    m_matDst = *pattern;
+    if (pattern->isContinuous())
+        m_matDst = *pattern;
+    else
+        m_matDst = pattern->clone();
 	int iTopLayer = GetTopLayer (&m_matDst, (int)sqrt ((double)m_iMinReduceArea));
 	buildPyramid (m_matDst, m_TemplData.vecPyramid, iTopLayer);
 	s_TemplData* templData = &m_TemplData;
@@ -576,9 +580,14 @@ bool RotatedPatternMatcher::search(cv::Mat* image, cv::Point2d* retPoint, double
 		return false;
 	if (!m_TemplData.bIsPatternLearned)
 		return false;
+    m_dScore = *score * 0.01;
+    m_dMaxOverlap = 0;
+    m_iMaxPos = 10;
 	double d1 = clock ();
 	//決定金字塔層數 總共為1 + iLayer層
 	int iTopLayer = GetTopLayer (&m_matDst, (int)sqrt ((double)m_iMinReduceArea));
+    std::cout << "m_iMinReduceArea: " << m_iMinReduceArea << std::endl;
+    std::cout << "iTopLayer: " << iTopLayer << std::endl;
 	//建立金字塔
     vector<Mat> vecMatSrcPyr;
     buildPyramid (m_matSrc, vecMatSrcPyr, iTopLayer);
@@ -589,11 +598,31 @@ bool RotatedPatternMatcher::search(cv::Mat* image, cv::Point2d* retPoint, double
 	double dAngleStep = atan (2.0 / max (pTemplData->vecPyramid[iTopLayer].cols, pTemplData->vecPyramid[iTopLayer].rows)) * R2D;
 
 	vector<double> vecAngles;
-    for (double dAngle = m_dMinAngle; dAngle < m_dMaxAngle + dAngleStep; dAngle += dAngleStep)
-        vecAngles.push_back(dAngle);
+    //double minAngle = MIN(m_dMinAngle, m_dMaxAngle);
+    //double maxAngle = MAX(m_dMinAngle, m_dMaxAngle);
+    //m_dMinAngle = minAngle;
+    //m_dMaxAngle = maxAngle;
+    //if (m_dMinAngle <= 0 && m_dMaxAngle >= 0)
+    //{
+    //    for (double dAngle = 0; dAngle < m_dMaxAngle + dAngleStep; dAngle += dAngleStep)
+    //        vecAngles.push_back(dAngle);
+    //    for (double dAngle = -dAngleStep; dAngle > m_dMinAngle - dAngleStep; dAngle -= dAngleStep)
+    //        vecAngles.push_back(dAngle);
+    //}
+    //else
+    {
+        for (double dAngle = m_dMinAngle; dAngle < m_dMaxAngle + dAngleStep; dAngle += dAngleStep)
+            vecAngles.push_back(dAngle);
+    }
+    std::cout << "m_dMinAngle: " << m_dMinAngle << std::endl;
+    std::cout << "m_dMaxAngle: " << m_dMaxAngle << std::endl;
+    std::cout << "dAngleStep: " << dAngleStep << std::endl;
 
 	int iTopSrcW = vecMatSrcPyr[iTopLayer].cols, iTopSrcH = vecMatSrcPyr[iTopLayer].rows;
 	Point2f ptCenter ((iTopSrcW - 1) / 2.0f, (iTopSrcH - 1) / 2.0f);
+
+    std::cout << "iTopSrcW: " << iTopSrcW << std::endl;
+    std::cout << "iTopSrcH: " << iTopSrcH << std::endl;
 
 	int iSize = (int)vecAngles.size ();
 	//vector<s_MatchParameter> vecMatchParameter (iSize * (m_iMaxPos + MATCH_CANDIDATE_NUM));
@@ -602,12 +631,17 @@ bool RotatedPatternMatcher::search(cv::Mat* image, cv::Point2d* retPoint, double
 	vector<double> vecLayerScore (iTopLayer + 1, m_dScore);
 	for (int iLayer = 1; iLayer <= iTopLayer; iLayer++)
 		vecLayerScore[iLayer] = vecLayerScore[iLayer - 1] * 0.9;
+    std::cout << "m_dScore: " << m_dScore << std::endl;
 
 	Size sizePat = pTemplData->vecPyramid[iTopLayer].size ();
 	bool bCalMaxByBlock = (vecMatSrcPyr[iTopLayer].size ().area () / sizePat.area () > 500) && m_iMaxPos > 10;
-	for (int i = 0; i < iSize; i++)
+    std::cout << "bCalMaxByBlock: " << bCalMaxByBlock << std::endl;
+    std::cout << "iSize: " << iSize << std::endl;
+    std::cout << "m_dMaxOverlap: " << m_dMaxOverlap << std::endl;
+    for (int i = 0; i < iSize; i++)
 	{
-		Mat matRotatedSrc, matR = getRotationMatrix2D (ptCenter, vecAngles[i], 1);
+        std::cout << "i: " << i << std::endl;
+        Mat matRotatedSrc, matR = getRotationMatrix2D (ptCenter, vecAngles[i], 1);
 		Mat matResult;
 		Point ptMaxLoc;
 		double dValue, dMaxVal;
@@ -656,7 +690,8 @@ bool RotatedPatternMatcher::search(cv::Mat* image, cv::Point2d* retPoint, double
 
 	
 	int iMatchSize = (int)vecMatchParameter.size ();
-	int iDstW = pTemplData->vecPyramid[iTopLayer].cols, iDstH = pTemplData->vecPyramid[iTopLayer].rows;
+    std::cout << "iMatchSize: " << iMatchSize << std::endl;
+    int iDstW = pTemplData->vecPyramid[iTopLayer].cols, iDstH = pTemplData->vecPyramid[iTopLayer].rows;
 
 	//顯示第一層結果
 	if (false) //m_bDebugMode)
@@ -704,7 +739,8 @@ bool RotatedPatternMatcher::search(cv::Mat* image, cv::Point2d* retPoint, double
 	for (int i = 0; i < (int)vecMatchParameter.size (); i++)
 	//for (int i = 0; i < iSearchSize; i++)
 	{
-		double dRAngle = -vecMatchParameter[i].dMatchAngle * D2R;
+        std::cout << "vecMatchParameter[i].dMatchScore: " << i << " " << vecMatchParameter[i].dMatchScore << std::endl;
+        double dRAngle = -vecMatchParameter[i].dMatchAngle * D2R;
 		Point2f ptLT = ptRotatePt2f (vecMatchParameter[i].pt, ptCenter, dRAngle);
 
 		double dAngleStep = atan (2.0 / max (iDstW, iDstH)) * R2D;//min改為max
@@ -809,6 +845,7 @@ bool RotatedPatternMatcher::search(cv::Mat* image, cv::Point2d* retPoint, double
 		}
 	}
 	FilterWithScore (&vecAllResult, m_dScore);
+    std::cout << "FilterWithScore vecAllResult.size (): " << vecAllResult.size() << std::endl;
 
 	//最後濾掉重疊
 	iDstW = pTemplData->vecPyramid[iStopLayer].cols, iDstH = pTemplData->vecPyramid[iStopLayer].rows;
@@ -827,6 +864,7 @@ bool RotatedPatternMatcher::search(cv::Mat* image, cv::Point2d* retPoint, double
 	}
 	FilterWithRotatedRect (&vecAllResult, CV_TM_CCOEFF_NORMED, m_dMaxOverlap);
 	//最後濾掉重疊
+    std::cout << "FilterWithRotatedRect vecAllResult.size (): " << vecAllResult.size() << std::endl;
 
 	//根據分數排序
 	sort (vecAllResult.begin (), vecAllResult.end (), compareScoreBig2Small);
@@ -856,7 +894,10 @@ bool RotatedPatternMatcher::search(cv::Mat* image, cv::Point2d* retPoint, double
 			sstm.dMatchedAngle -= 360;
 		//m_vecSingleTargetData.push_back (sstm);
 
-		
+        std::cout << "ptCenter: " << sstm.ptCenter.x << "," << sstm.ptCenter.y << std::endl;
+        std::cout << "dMatchedAngle: " << sstm.dMatchedAngle << std::endl;
+        std::cout << "dMatchScore: " << sstm.dMatchScore << std::endl;
+
 
 		//Test Subpixel
 		/*Point2d ptLT = vecAllResult[i].ptSubPixel;

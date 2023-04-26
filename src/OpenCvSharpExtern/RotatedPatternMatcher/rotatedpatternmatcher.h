@@ -214,7 +214,7 @@ public:
 
     int m_iMaxPos;
     double m_dMaxOverlap;
-    double m_dScore;
+    double m_dScore = 0.8;
     double m_dMinAngle;
     double m_dMaxAngle;
     double m_dAngleStep;
@@ -241,18 +241,21 @@ CVAPI(ExceptionStatus) rotatedPatternMatcher_RotatedPatternMatcher_new(cv::Mat* 
 CVAPI(ExceptionStatus) rotatedPatternMatcher_RotatedPatternMatcher_delete(RotatedPatternMatcher* obj)
 {
     BEGIN_WRAP
-        delete obj;
+    delete obj;
     END_WRAP
 }
 CVAPI(ExceptionStatus) rotatedPatternMatcher_RotatedPatternMatcher_teach(RotatedPatternMatcher* obj, cv::Mat* pattern, double minAngle, double maxAngle, double angleStep, int minReducedArea)
 {
     BEGIN_WRAP
+    obj->setAngleRange(minAngle, maxAngle, angleStep);
     obj->teach(pattern, minReducedArea);
     END_WRAP
 }
-CVAPI(ExceptionStatus) rotatedPatternMatcher_RotatedPatternMatcher_search(RotatedPatternMatcher* obj, cv::Mat* image, cv::Point2d* retPoint, double* angle, double* score)
+CVAPI(ExceptionStatus) rotatedPatternMatcher_RotatedPatternMatcher_search(RotatedPatternMatcher* obj, cv::Mat* image, double minAngle, double maxAngle, double angleStep, int minReducedArea, cv::Point2d* retPoint, double* angle, double* score)
 {
     BEGIN_WRAP
+    obj->setAngleRange(minAngle, maxAngle, angleStep);
+    obj->m_iMinReduceArea = minReducedArea;
     obj->search(image, retPoint, angle, score);
     END_WRAP
 }

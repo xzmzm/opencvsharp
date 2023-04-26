@@ -51,6 +51,6 @@ namespace OpenCvSharpEx.Internal
         [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern ExceptionStatus rotatedPatternMatcher_RotatedPatternMatcher_teach(IntPtr shapeMatcherObj, IntPtr pattern, double minAngle, double maxAngle, double angleStep, int minReducedArea);
         [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-        public static extern ExceptionStatus rotatedPatternMatcher_RotatedPatternMatcher_search(IntPtr shapeMatcherObj, IntPtr image, out OpenCvSharp.Point2d location, out double angle, ref double score);
+        public static extern ExceptionStatus rotatedPatternMatcher_RotatedPatternMatcher_search(IntPtr shapeMatcherObj, IntPtr image, double minAngle, double maxAngle, double angleSte, int minReducedArea, out OpenCvSharp.Point2d location, out double angle, ref double score);
     }
 }
