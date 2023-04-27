@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "../include_opencv.h"
+#include <combaseapi.h>
 using namespace cv;
 using namespace std;
 
@@ -204,11 +205,20 @@ struct s_BlockMax
 		ptMaxLoc = vecBlock[iIndex].ptMaxLoc;
 	}
 };
+struct RotationPatternMatcherResults
+{
+    Point2d Location;
+    double Angle;
+    RotatedRect RotatedBounds;
+    Rect2d Bounds;
+    double Score;
+};
+
 class RotatedPatternMatcher
 {
 public:
-    void teach(cv::Mat* pattern, int pyramidLevels);
-    bool search(cv::Mat* image, cv::Point2d* retPoint, double* angle, double* score);
+    void teach(cv::Mat* pattern);
+    std::vector<RotationPatternMatcherResults> search(cv::Mat* image);
     //void preprocess();
     void setAngleRange(double minAngle, double maxAngle, double angleStep);
 
@@ -233,7 +243,8 @@ CVAPI(ExceptionStatus) rotatedPatternMatcher_RotatedPatternMatcher_new(cv::Mat* 
     BEGIN_WRAP
     auto rotatedPatternMatcher = new RotatedPatternMatcher;
     rotatedPatternMatcher->setAngleRange(minAngle, maxAngle, angleStep);
-    rotatedPatternMatcher->teach(pattern, minReducedArea);
+    rotatedPatternMatcher->m_iMinReduceArea = minReducedArea;
+    rotatedPatternMatcher->teach(pattern);
     //rotatedPatternMatcher->preprocess();
     *returnValue = rotatedPatternMatcher;
     END_WRAP
@@ -248,15 +259,24 @@ CVAPI(ExceptionStatus) rotatedPatternMatcher_RotatedPatternMatcher_teach(Rotated
 {
     BEGIN_WRAP
     obj->setAngleRange(minAngle, maxAngle, angleStep);
-    obj->teach(pattern, minReducedArea);
+    obj->m_iMinReduceArea = minReducedArea;
+    obj->teach(pattern);
     END_WRAP
 }
-CVAPI(ExceptionStatus) rotatedPatternMatcher_RotatedPatternMatcher_search(RotatedPatternMatcher* obj, cv::Mat* image, double minAngle, double maxAngle, double angleStep, int minReducedArea, cv::Point2d* retPoint, double* angle, double* score)
+CVAPI(ExceptionStatus) rotatedPatternMatcher_RotatedPatternMatcher_search(RotatedPatternMatcher* obj, cv::Mat* image, double acceptanceScore, double minAngle, double maxAngle, double angleStep, int maxMatchCount, int minReducedArea, double maxOverlapRatio, RotationPatternMatcherResults** results, int* resultsLength)
 {
     BEGIN_WRAP
+    obj->m_dScore = acceptanceScore * 0.01;
     obj->setAngleRange(minAngle, maxAngle, angleStep);
     obj->m_iMinReduceArea = minReducedArea;
-    obj->search(image, retPoint, angle, score);
+    obj->m_iMaxPos = maxMatchCount;
+    obj->m_dMaxOverlap = maxOverlapRatio;
+    auto r = obj->search(image);
+    RotationPatternMatcherResults* pr = (RotationPatternMatcherResults*)CoTaskMemAlloc(sizeof(RotatedPatternMatcher) * r.size());
+    //std::copy(r.data(), r.data() + r.size(), pr);
+    std::memcpy(pr, r.data(), r.size() * sizeof(RotationPatternMatcherResults));
+    *results = pr;
+    *resultsLength = r.size();
     END_WRAP
 }
 

@@ -22,12 +22,12 @@ namespace OpenCvSharpEx
         {
             get;
             set;
-        }
+        } = -180.0;
         public double MaxAngle
         {
             get;
             set;
-        }
+        } = 180.0;
         public double AngleStep
         {
             get;
@@ -39,6 +39,16 @@ namespace OpenCvSharpEx
             set;
         } = 256;
 
+        public int MaxMatchCount
+        {
+            get;
+            set;
+        } = 10;
+        public double MaxOverlapRatio
+        {
+            get;
+            set;
+        } = 0.0;
         public void Teach(Mat pattern)
         {
             var ret = NativeMethods.rotatedPatternMatcher_RotatedPatternMatcher_new(pattern.CvPtr, this.MinAngle, this.MaxAngle, this.AngleStep, this.MinReducedArea, out this.rotatedPatternMatcherObj);
@@ -47,18 +57,21 @@ namespace OpenCvSharpEx
         {
 
         }
-        public RotationPatternMatcherResults Search(Mat image, bool refineResults = false)
+        public RotationPatternMatcherResults[] Search(Mat image, bool refineResults = false)
         {
             if (this.rotatedPatternMatcherObj == IntPtr.Zero)
                 throw new OpenCvSharpException("No pattern is taught yet.");
             double score = this.AcceptancePercentage;
-            var ret = NativeMethods.rotatedPatternMatcher_RotatedPatternMatcher_search(this.rotatedPatternMatcherObj, image.CvPtr, this.MinAngle, this.MaxAngle, this.AngleStep, this.MinReducedArea, out var location, out var angle, ref score);
-            return new RotationPatternMatcherResults()
+            var ret = NativeMethods.rotatedPatternMatcher_RotatedPatternMatcher_search(this.rotatedPatternMatcherObj, image.CvPtr, this.AcceptancePercentage, this.MinAngle, this.MaxAngle, this.AngleStep, this.MaxMatchCount, this.MinReducedArea, this.MaxOverlapRatio, out var results, out var resultsLength);
+            var r = new RotationPatternMatcherResults[resultsLength];
+            var p = results;
+            for (int i = 0; i < r.Length; ++i)
             {
-                Location = location,
-                Angle = angle,
-                Score = score,
-            };
+                r[i] = (RotationPatternMatcherResults)System.Runtime.InteropServices.Marshal.PtrToStructure(p, typeof(RotationPatternMatcherResults));
+                p += System.Runtime.InteropServices.Marshal.SizeOf(typeof(RotationPatternMatcherResults));
+            }
+            System.Runtime.InteropServices.Marshal.FreeCoTaskMem(results);
+            return r;
         }
         ~RotatedPattenMatcher()
         {
@@ -76,7 +89,7 @@ namespace OpenCvSharpEx
             GC.SuppressFinalize(this);
         }
     }
-    public class RotationPatternMatcherResults
+    public struct RotationPatternMatcherResults
     {
         public Point2d Location { get; set; }
         public double Angle { get; set; }
