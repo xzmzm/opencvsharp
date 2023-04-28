@@ -21,6 +21,7 @@
 
 #define FONT_SIZE 115
 
+#include <omp.h>
 #include <chrono>
 class Timer
 {
@@ -39,6 +40,17 @@ private:
     typedef std::chrono::high_resolution_clock clock_;
     std::chrono::time_point<clock_> beg_;
 };
+
+template<typename ... Args>
+std::string string_format(const std::string& format, Args ... args)
+{
+    int size_s = std::snprintf(nullptr, 0, format.c_str(), args ...) + 1; // Extra space for '\0'
+    if (size_s <= 0) { throw std::runtime_error("Error during formatting."); }
+    auto size = static_cast<size_t>(size_s);
+    std::unique_ptr<char[]> buf(new char[size]);
+    std::snprintf(buf.get(), size, format.c_str(), args ...);
+    return std::string(buf.get(), buf.get() + size - 1); // We don't want the '\0' inside
+}
 
 bool compareScoreBig2Small (const s_MatchParameter& lhs, const s_MatchParameter& rhs) { return  lhs.dMatchScore > rhs.dMatchScore; }
 bool comparePtWithAngle (const pair<Point2f, double> lhs, const pair<Point2f, double> rhs) { return lhs.second < rhs.second; }
@@ -680,7 +692,7 @@ std::vector<RotationPatternMatcherResults> RotatedPatternMatcher::search(cv::Mat
         matR.at<double> (0, 2) += fTranslationX;
 		matR.at<double> (1, 2) += fTranslationY;
 		warpAffine (vecMatSrcPyr[iTopLayer], matRotatedSrc, matR, sizeBest, INTER_LINEAR, BORDER_CONSTANT, Scalar (pTemplData->iBorderColor));
-
+        //imwrite(string_format("K:\\prj\\orange\\trunk\\vision\\VisionLib\\VisionTest\\bin\\Debug\\images\\%i_%.3f.png", iTopLayer, vecAngles[i]), matRotatedSrc);
 		MatchTemplate (matRotatedSrc, pTemplData, matResult, iTopLayer, false);
 
 		if (bCalMaxByBlock)
@@ -819,8 +831,8 @@ std::vector<RotationPatternMatcherResults> RotatedPatternMatcher::search(cv::Mat
 					double dMaxValue = 0;
 					Point ptMaxLoc;
 					GetRotatedROI (vecMatSrcPyr[iLayer], pTemplData->vecPyramid[iLayer].size (), ptLT * 2, vecAngles[j], matRotatedSrc);
-
-					MatchTemplate (matRotatedSrc, pTemplData, matResult, iLayer, true);
+                    //imwrite(string_format("K:\\prj\\orange\\trunk\\vision\\VisionLib\\VisionTest\\bin\\Debug\\images\\%i_%.3f.png", iLayer, vecAngles[j]), matRotatedSrc);
+                    MatchTemplate (matRotatedSrc, pTemplData, matResult, iLayer, true);
 					//matchTemplate (matRotatedSrc, pTemplData->vecPyramid[iLayer], matResult, CV_TM_CCOEFF_NORMED);
 					minMaxLoc (matResult, 0, &dMaxValue, 0, &ptMaxLoc);
 					vecNewMatchParameter[j] = s_MatchParameter (ptMaxLoc, dMaxValue, vecAngles[j]);
