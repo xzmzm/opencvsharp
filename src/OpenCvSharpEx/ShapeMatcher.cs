@@ -50,17 +50,17 @@ namespace OpenCvSharpEx
         }
         public void Teach(Mat pattern)
         {
-            var ret = NativeMethods.shapematcher_ShapeMatcher_new(pattern.CvPtr, this.MinAngle, this.MaxAngle, this.AngleStep, this.AcceptancePercentage, this.Features, this.PyramidLevels, out this.shapeMatcherObj);
+            var ret = NativeMethods.shapematcher_ShapeMatcher_new(pattern.CvPtr, this.MinAngle, this.MaxAngle, this.AngleStep, this.Features, this.PyramidLevels, out this.shapeMatcherObj);
         }
         public Feature[] GetFeatures(int templateIndex)
         {
             if (this.shapeMatcherObj == null)
                 throw new OpenCvSharpException("No pattern is taught yet.");
-            NativeMethods.shapematcher_ShapeMatcher_getFeaturesCount(this.shapeMatcherObj, templateIndex, out var featuresCount);
+            NativeMethods.shapematcher_ShapeMatcher_getFeatures(this.shapeMatcherObj, templateIndex, IntPtr.Zero, out var featuresCount);
             if (featuresCount > 0)
             {
                 var features = new Feature[featuresCount];
-                NativeMethods.shapematcher_ShapeMatcher_getFeatures(this.shapeMatcherObj, templateIndex, features);
+                NativeMethods.shapematcher_ShapeMatcher_getFeatures(this.shapeMatcherObj, templateIndex, features, out _);
                 return features;
             }
             else return new Feature[0];

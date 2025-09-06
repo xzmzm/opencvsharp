@@ -50,6 +50,13 @@ void ShapeMatcher::teach(cv::Mat *pattern, int nFeatures = 63, int pyramidLevels
     t[0] = 4;
     for (int i = 1; i < t.size(); ++i)
         t[i] = 8;
+
+    // The line2Dup::Detector is the core engine for feature extraction and matching.
+    // It's initialized with the number of features to extract per template and
+    // the T values for spreading at each pyramid level. T controls how gradients
+    // are grouped spatially, affecting the robustness of the matching.
+    // A smaller T (like 4) is used for higher-resolution pyramid levels,
+    // while a larger T (like 8) is used for lower-resolution levels.
     this->detector = cv::makePtr<line2Dup::Detector>(nFeatures, t);
 
     // padding to avoid rotating out
@@ -57,6 +64,11 @@ void ShapeMatcher::teach(cv::Mat *pattern, int nFeatures = 63, int pyramidLevels
     int padc = half - (mask.cols + 1) / 2;
     int padr = half - (mask.rows + 1) / 2;
     cv::Mat padded_img = cv::Mat(mask.rows + 2 * padr, mask.cols + 2 * padc, mask.type(), cv::Scalar::all(0));
+    // 1. Why padding is needed:
+    // To create rotated versions of the template, we need a canvas large enough
+    // to hold the template at any angle without clipping it. The smallest square
+    // that can contain the template rotated by any angle has a side length equal to the
+    // diagonal of the original template's bounding box. We copy the original pattern into the center of this padded image.
     this->pattern.copyTo(padded_img(cv::Rect(padc, padr, mask.cols, mask.rows)));
 
     cv::Mat padded_mask = cv::Mat(mask.rows + 2 * padr, mask.cols + 2 * padc, mask.type(), cv::Scalar::all(0));
@@ -64,16 +76,23 @@ void ShapeMatcher::teach(cv::Mat *pattern, int nFeatures = 63, int pyramidLevels
 
     this->shapes = cv::makePtr<shape_based_matching::shapeInfo_producer>(padded_img, padded_mask);
     this->shapes->angle_range = {(float)this->minAngle, (float)this->maxAngle};
-    this->shapes->angle_step = 1;
+    this->shapes->angle_step = (float)this->angleStep;
     this->shapes->scale_range = {1.0f}; // { 0.97f, 1.1f };
     this->shapes->scale_step = 100.0f;  // one scale, 0.97
 
+    // 2. How rotated templates are generated:
+    // The shapeInfo_producer generates a list of angle/scale combinations based on the specified ranges and steps.
     this->shapes->produce_infos();
     std::string class_id = "test";
     this->infos_have_templ.clear();
+
+    // 3. Pyramid construction and feature extraction:
+    // This loop iterates through each generated angle/scale combination.
     for (auto &info : this->shapes->infos)
     {
+        // For each angle, `src_of(info)` creates a new image by rotating the padded template.
         int templ_id = this->detector->addTemplate(this->shapes->src_of(info), class_id, this->shapes->mask_of(info));
+        // The detector's addTemplate method then builds an image pyramid for this rotated template and extracts features at each level.
         if (templ_id != -1)
         {
             this->infos_have_templ.push_back(info);
@@ -157,11 +176,24 @@ void ShapeMatcher::search(cv::Mat *image, bool refineResults, bool useFusion, cv
         init_angle = init_angle >= 180 ? (init_angle - 360) : init_angle;
         if (refineResults)
         {
-            // construct scene
+            // Iterative Closest Point (ICP) is used to refine the initial coarse match.
+            // It aligns two point clouds: one from the template features ("model") and
+            // one from the detected edges in the search image ("scene").
+
+            // 1. Construct the scene:
+            // Preprocess the search image to find edge points and their normals.
+            // This creates a representation that can be quickly queried for the nearest
+            // edge point to any given coordinate.
             Scene_edge scene;
             // buffer
             std::vector<::Vec2f> pcd_buffer, normal_buffer;
             scene.init_Scene_edge_cpu(padded_img, pcd_buffer, normal_buffer);
+
+            // 2. Create the model point cloud:
+            // The features of the matched template are treated as a point cloud.
+            // Their coordinates are transformed from the template's local coordinate
+            // system to the search image's coordinate system based on the initial
+            // match position (match.x, match.y).
 
             if (padded_img.channels() == 1)
                 cvtColor(padded_img, padded_img, cv::COLOR_GRAY2BGR);
@@ -174,9 +206,15 @@ void ShapeMatcher::search(cv::Mat *image, bool refineResults, bool useFusion, cv
                     float(feat.x + match.x),
                     float(feat.y + match.y)};
             }
+
+            // 3. Run ICP:
+            // This function finds the small rotation and translation (rigid transformation)
+            // that best aligns the template features with the scene edges.
             cuda_icp::RegistrationResult result = cuda_icp::ICP2D_Point2Plane_cpu(model_pcd, scene);
 
-            // Refine position
+            // 4. Apply the refinement transformation:
+            // The resulting transformation matrix from ICP is used to adjust the initial
+            // matched position and angle for higher accuracy.
             {
                 double center_x = match.x - templ[0].tl_x + train_img_half_width;
                 double center_y = match.y - templ[0].tl_y + train_img_half_width;
@@ -184,8 +222,6 @@ void ShapeMatcher::search(cv::Mat *image, bool refineResults, bool useFusion, cv
                 double new_y = result.transformation_[1][0] * center_x + result.transformation_[1][1] * center_y + result.transformation_[1][2];
                 *retPoint = cv::Point2d(new_x, new_y);
             }
-
-            // Refine angle
             {
                 double initial_angle_rad = init_angle * CV_PI / 180.0;
                 // The rotation part of the 2D affine transformation matrix is:
@@ -228,21 +264,77 @@ void ShapeMatcher::setAngleRange(double minAngle, double maxAngle, double angleS
     this->angleStep = angleStep;
 }
 
-std::vector<std::vector<line2Dup::Feature>> ShapeMatcher::getFeatures()
+CVAPI(ExceptionStatus)
+shapematcher_ShapeMatcher_new(cv::Mat *pattern, double minAngle, double maxAngle, double angleStep, int nFeatures, int pyramidLevels, ShapeMatcher **returnValue)
 {
-    int n = this->detector->numTemplates("test");
-    std::cout << "n:" << n << std::endl;
-    std::vector<std::vector<line2Dup::Feature>> features(n);
-    for (int i = 0; i < n; ++i)
+    BEGIN_WRAP
+    auto shapeMatcher = new ShapeMatcher;
+    shapeMatcher->setAngleRange(minAngle, maxAngle, angleStep);
+    shapeMatcher->teach(pattern, nFeatures, pyramidLevels);
+    shapeMatcher->preprocess();
+    *returnValue = shapeMatcher;
+    END_WRAP
+}
+CVAPI(ExceptionStatus)
+shapematcher_ShapeMatcher_delete(ShapeMatcher *obj)
+{
+    BEGIN_WRAP
+    delete obj;
+    END_WRAP
+}
+CVAPI(ExceptionStatus)
+shapematcher_ShapeMatcher_teach(ShapeMatcher *obj, cv::Mat *pattern, int nFeatures, int pyramidLevels)
+{
+    BEGIN_WRAP
+    obj->teach(pattern, nFeatures, pyramidLevels);
+    END_WRAP
+}
+CVAPI(ExceptionStatus)
+shapematcher_ShapeMatcher_search(ShapeMatcher *obj, cv::Mat *image, bool refineResults, cv::Point2d *retPoint, double *angle, double *score, int *templateID)
+{
+    BEGIN_WRAP
+    obj->search(image, refineResults, false, retPoint, angle, score, templateID);
+    END_WRAP
+}
+CVAPI(ExceptionStatus)
+shapematcher_ShapeMatcher_searchFusion(ShapeMatcher *obj, cv::Mat *image, bool refineResults, cv::Point2d *retPoint, double *angle, double *score, int *templateID)
+{
+    BEGIN_WRAP
+    obj->search(image, refineResults, true, retPoint, angle, score, templateID);
+    END_WRAP
+}
+CVAPI(ExceptionStatus)
+shapematcher_ShapeMatcher_getPaddedPattern(ShapeMatcher *obj, double angle, cv::Mat *outPaddedPattern)
+{
+    BEGIN_WRAP
+    obj->getPaddedPattern(angle, outPaddedPattern);
+    END_WRAP
+}
+CVAPI(ExceptionStatus)
+shapematcher_ShapeMatcher_getFeatures(ShapeMatcher *obj, int templateIndex, line2Dup::Feature *features, int *count)
+{
+    BEGIN_WRAP
+    int n = obj->detector->numTemplates("test");
+    if (templateIndex < n)
     {
-        auto templates = this->detector->getTemplates("test", i);
+        auto templates = obj->detector->getTemplates("test", templateIndex);
         auto t = templates[0];
-        features[i] = t.features;
-        for (auto &ff : features[i])
+        *count = (int)t.features.size();
+
+        if (features != nullptr)
         {
-            ff.x += t.tl_x;
-            ff.y += t.tl_y;
+            auto f = t.features;
+            for (auto &ff : f)
+            {
+                ff.x += t.tl_x;
+                ff.y += t.tl_y;
+            }
+            std::copy(f.begin(), f.end(), features);
         }
     }
-    return features;
+    else
+    {
+        *count = 0;
+    }
+    END_WRAP
 }
