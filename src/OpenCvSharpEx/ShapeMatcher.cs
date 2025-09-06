@@ -6,13 +6,25 @@ using OpenCvSharpEx.Internal;
 
 namespace OpenCvSharpEx
 {
+    /// <summary>
+    /// Specifies the method used for refining match results.
+    /// </summary>
+    public enum RefinementMethod
+    {
+        /// <summary>No refinement is performed. The result from the coarse search is returned. Fastest.</summary>
+        None,
+        /// <summary>Uses quadratic interpolation on a Normalized Cross-Correlation (NCC) score map in a small neighborhood. Fast and provides sub-pixel accuracy.</summary>
+        Quadratic,
+        /// <summary>Uses Iterative Closest Point (ICP) algorithm for the most accurate alignment. Slowest.</summary>
+        ICP
+    }
     public class ShapeMatcher : IDisposable
     {
         public ShapeMatcher()
         {
 
         }
-        IntPtr shapeMatcherObj;
+        private IntPtr shapeMatcherObj;
         public double AcceptancePercentage
         {
             get;
@@ -48,13 +60,18 @@ namespace OpenCvSharpEx
             get;
             set;
         }
+        /// <summary>
+        /// Gets or sets the method used to refine the position of found matches. Default is None.
+        /// </summary>
+        public RefinementMethod Refinement { get; set; } = RefinementMethod.None;
+
         public void Teach(Mat pattern)
         {
             var ret = NativeMethods.shapematcher_ShapeMatcher_new(pattern.CvPtr, this.MinAngle, this.MaxAngle, this.AngleStep, this.Features, this.PyramidLevels, out this.shapeMatcherObj);
         }
         public Feature[] GetFeatures(int templateIndex)
         {
-            if (this.shapeMatcherObj == null)
+            if (this.shapeMatcherObj == IntPtr.Zero)
                 throw new OpenCvSharpException("No pattern is taught yet.");
             NativeMethods.shapematcher_ShapeMatcher_getFeatures(this.shapeMatcherObj, templateIndex, IntPtr.Zero, out var featuresCount);
             if (featuresCount > 0)
@@ -65,24 +82,62 @@ namespace OpenCvSharpEx
             }
             else return new Feature[0];
         }
+        public ShapeTemplate GetTemplate(int templateIndex)
+        {
+            if (this.shapeMatcherObj == IntPtr.Zero)
+                throw new OpenCvSharpException("No pattern is taught yet.");
+
+            NativeMethods.shapematcher_ShapeMatcher_getTemplate(this.shapeMatcherObj, templateIndex, out _, out _, IntPtr.Zero, out var featuresCount);
+
+            Feature[] features;
+            float angle, scale;
+
+            if (featuresCount > 0)
+            {
+                features = new Feature[featuresCount];
+                NativeMethods.shapematcher_ShapeMatcher_getTemplate(this.shapeMatcherObj, templateIndex, out angle, out scale, features, out _);
+            }
+            else
+            {
+                features = new Feature[0];
+                NativeMethods.shapematcher_ShapeMatcher_getTemplate(this.shapeMatcherObj, templateIndex, out angle, out scale, null, out _);
+            }
+
+            return new ShapeTemplate
+            {
+                Angle = angle,
+                Scale = scale,
+                Features = features
+            };
+        }
+        public Point GetPatternOffset()
+        {
+            if (this.shapeMatcherObj == IntPtr.Zero)
+                throw new OpenCvSharpException("No pattern is taught yet.");
+            NativeMethods.shapematcher_ShapeMatcher_getPatternOffset(this.shapeMatcherObj, out var offset);
+            return offset;
+        }
         public void PreprocessPattern()
         {
 
         }
-        public ShapeMatcherResults Search(Mat image, bool refineResults = false)
+        public ShapeMatcherResults Search(Mat image)
         {
             if (this.shapeMatcherObj == IntPtr.Zero)
                 throw new OpenCvSharpException("No pattern is taught yet.");
             double score = this.AcceptancePercentage;
-            var ret = this.UseFusion ? NativeMethods.shapematcher_ShapeMatcher_searchFusion(this.shapeMatcherObj, image.CvPtr, refineResults, out var location, out double angle, ref score, out int templateID)
-                : NativeMethods.shapematcher_ShapeMatcher_search(this.shapeMatcherObj, image.CvPtr, refineResults, out location, out angle, ref score, out templateID);
-            return new ShapeMatcherResults()
+            var ret = this.UseFusion ? NativeMethods.shapematcher_ShapeMatcher_searchFusion(this.shapeMatcherObj, image.CvPtr, (int)this.Refinement, out var location, out var angle, ref score, out var templateID, out var rotatedBounds)
+                : NativeMethods.shapematcher_ShapeMatcher_search(this.shapeMatcherObj, image.CvPtr, (int)this.Refinement, out location, out angle, ref score, out templateID, out rotatedBounds);
+            var results = new ShapeMatcherResults()
             {
                 Location = location,
                 Angle = angle,
                 Score = score,
-                TemplateID = templateID
+                TemplateID = templateID,
+                RotatedBounds = rotatedBounds,
             };
+            results.Bounds = results.RotatedBounds.BoundingRect2d();
+            return results;
         }
         public Mat GetPaddedPattern(double angle)
         {
@@ -116,6 +171,12 @@ namespace OpenCvSharpEx
         public Rect2d Bounds { get; set; }
         public double Score { get; set; }
         public int TemplateID { get; set; }
+    }
+    public class ShapeTemplate
+    {
+        public double Angle { get; set; }
+        public double Scale { get; set; }
+        public Feature[] Features { get; set; }
     }
     public struct Feature
     {

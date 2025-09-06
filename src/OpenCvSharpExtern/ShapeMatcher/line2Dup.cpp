@@ -295,7 +295,7 @@ namespace line2Dup
     }
 
     static void quantizedOrientations(const Mat &src, Mat &magnitude,
-                                      Mat &angle, Mat &angle_ori, float threshold)
+                                      Mat &angle, Mat &angle_ori, float threshold, Mat& dx, Mat& dy)
     {
         Mat smoothed;
         // Compute horizontal and vertical image derivatives on all color channels separately
@@ -308,6 +308,8 @@ namespace line2Dup
             Mat sobel_dx, sobel_dy, sobel_ag;
             Sobel(smoothed, sobel_dx, CV_32F, 1, 0, 3, 1.0, 0.0, BORDER_REPLICATE);
             Sobel(smoothed, sobel_dy, CV_32F, 0, 1, 3, 1.0, 0.0, BORDER_REPLICATE);
+            dx = sobel_dx;
+            dy = sobel_dy;
             magnitude = sobel_dx.mul(sobel_dx) + sobel_dy.mul(sobel_dy);
             phase(sobel_dx, sobel_dy, sobel_ag, true);
             hysteresisGradient(magnitude, angle, sobel_ag, threshold * threshold);
@@ -380,6 +382,8 @@ namespace line2Dup
                 ptrmg += length5;
             }
 
+            dx = sobel_dx;
+            dy = sobel_dy;
             // Calculate the final gradient orientations
             phase(sobel_dx, sobel_dy, sobel_ag, true);
             hysteresisGradient(magnitude, angle, sobel_ag, threshold * threshold);
@@ -402,7 +406,7 @@ namespace line2Dup
 
     void ColorGradientPyramid::update()
     {
-        quantizedOrientations(src, magnitude, angle, angle_ori, weak_threshold);
+        quantizedOrientations(src, magnitude, angle, angle_ori, weak_threshold, dx_, dy_);
     }
 
     void ColorGradientPyramid::pyrDown()
@@ -1094,15 +1098,20 @@ namespace line2Dup
     }
 
     std::vector<Match> Detector::match(Mat source, float threshold,
-                                       const std::vector<std::string> &class_ids, const Mat mask) const
+                                       const std::vector<std::string> &class_ids, const Mat mask)
     {
+#ifdef DEBUG_MATCH_TIME
         Timer timer;
+#endif
         std::vector<Match> matches;
 
         // Initialize each ColorGradient with our sources
         std::vector<Ptr<ColorGradientPyramid>> quantizers;
         CV_Assert(mask.empty() || mask.size() == source.size());
         quantizers.push_back(modality->process(source, mask));
+
+        dx_ = quantizers[0]->dx_;
+        dy_ = quantizers[0]->dy_;
 
         // pyramid level -> ColorGradient -> quantization
         LinearMemoryPyramid lm_pyramid(pyramid_levels,
@@ -1137,7 +1146,9 @@ namespace line2Dup
             sizes.push_back(quantized.size());
         }
 
+#ifdef DEBUG_MATCH_TIME
         timer.out("construct response map");
+#endif
 
         if (class_ids.empty())
         {
@@ -1162,7 +1173,9 @@ namespace line2Dup
         std::vector<Match>::iterator new_end = std::unique(matches.begin(), matches.end());
         matches.erase(new_end, matches.end());
 
+#ifdef DEBUG_MATCH_TIME
         timer.out("templ match");
+#endif
 
         return matches;
     }
@@ -1187,12 +1200,8 @@ namespace line2Dup
         }
         return cur_res;
     }
-    std::vector<Match> Detector::match_fusion(cv::Mat source, float threshold, const std::vector<std::string> &class_ids, const cv::Mat mask) const
+    std::vector<Match> Detector::match_fusion(cv::Mat source, float threshold, const std::vector<std::string> &class_ids, const cv::Mat mask)
     {
-        bool set_produce_dxy = false;
-        cv::Mat dx_ = cv::Mat();
-        cv::Mat dy_ = cv::Mat();
-
         Timer timer;
         std::vector<Match> matches;
 
@@ -1201,6 +1210,8 @@ namespace line2Dup
         // results we want
         LinearMemoryPyramid lm_pyramid(pyramid_levels, std::vector<LinearMemories>(1, LinearMemories(8)));
         std::vector<Size> sizes;
+
+        bool set_produce_dxy = true;
 
         assert(mask.empty() && "mask not support yet");
 
@@ -1255,9 +1266,9 @@ namespace line2Dup
 
             if (set_produce_dxy && cur_l == 0)
             {
-                dx_ = cv::Mat(src.size(), CV_16S, cv::Scalar(0));
-                dy_ = cv::Mat(src.size(), CV_16S, cv::Scalar(0));
-                manager.get_nodes().push_back(std::make_shared<simple_fusion::Sobel3x1SxySyyNodeWithDxy_16S_16S>(dx_, dy_));
+                this->dx_ = cv::Mat(src.size(), CV_16S, cv::Scalar(0));
+                this->dy_ = cv::Mat(src.size(), CV_16S, cv::Scalar(0));
+                manager.get_nodes().push_back(std::make_shared<simple_fusion::Sobel3x1SxySyyNodeWithDxy_16S_16S>(this->dx_, this->dy_));
             }
             else
             {

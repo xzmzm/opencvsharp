@@ -221,10 +221,10 @@ void angle_test(string mode = "test", bool viewICP = false)
             top5 = matches.size();
 
         // construct scene
-        Scene_edge scene;
-        // buffer
-        vector<::Vec2f> pcd_buffer, normal_buffer;
-        scene.init_Scene_edge_cpu(img, pcd_buffer, normal_buffer);
+        // use kdtree to query, expected to be faster
+        Scene_kdtree scene;
+        KDTree_cpu kdtree;
+        scene.init_Scene_kdtree_cpu(detector.dx_, detector.dy_, kdtree);
 
         if (img.channels() == 1)
             cvtColor(img, img, COLOR_GRAY2BGR);
@@ -242,7 +242,7 @@ void angle_test(string mode = "test", bool viewICP = false)
             }
 
             cv::Mat smoothed = gray;
-            cv::Canny(smoothed, edge_global, 30, 60);
+            cv::Canny(smoothed, edge_global, 100, 200);
 
             if (edge_global.channels() == 1)
                 cvtColor(edge_global, edge_global, COLOR_GRAY2BGR);
@@ -256,20 +256,6 @@ void angle_test(string mode = "test", bool viewICP = false)
             auto templ = detector.getTemplates("test",
                                                match.template_id);
 
-            // 270 is width of template image
-            // 100 is padding when training
-            // tl_x/y: template croping topleft corner when training
-
-            float r_scaled = 270 / 2.0f * infos[match.template_id].scale;
-
-            // scaling won't affect this, because it has been determined by warpAffine
-            // cv::warpAffine(src, dst, rot_mat, src.size()); last param
-            float train_img_half_width = 270 / 2.0f + 100;
-
-            // center x,y of train_img in test img
-            float x = match.x - templ[0].tl_x + train_img_half_width;
-            float y = match.y - templ[0].tl_y + train_img_half_width;
-
             vector<::Vec2f> model_pcd(templ[0].features.size());
             for (int i = 0; i < templ[0].features.size(); i++)
             {
@@ -278,7 +264,9 @@ void angle_test(string mode = "test", bool viewICP = false)
                     float(feat.x + match.x),
                     float(feat.y + match.y)};
             }
-            cuda_icp::RegistrationResult result = cuda_icp::ICP2D_Point2Plane_cpu(model_pcd, scene);
+
+            // subpixel, also refine scale
+            cuda_icp::RegistrationResult result = cuda_icp::sim3::ICP2D_Point2Plane_cpu(model_pcd, scene);
 
             cv::Vec3b randColor;
             randColor[0] = 0;
@@ -319,14 +307,14 @@ void angle_test(string mode = "test", bool viewICP = false)
             init_angle = init_angle >= 180 ? (init_angle - 360) : init_angle;
 
             double ori_diff_angle = std::abs(init_angle);
-            double icp_diff_angle = std::abs(-std::atan(result.transformation_[1][0] / result.transformation_[0][0]) / CV_PI * 180 +
+            double icp_diff_angle = std::abs(-std::asin(result.transformation_[1][0]) / CV_PI * 180 +
                                              init_angle);
             double improved_angle = ori_diff_angle - icp_diff_angle;
 
             std::cout << "\n---------------" << std::endl;
-            std::cout << "scale: " << std::sqrt(result.transformation_[0][0] * result.transformation_[0][0] + result.transformation_[1][0] * result.transformation_[1][0]) << std::endl;
             std::cout << "init diff angle: " << ori_diff_angle << std::endl;
             std::cout << "improved angle: " << improved_angle << std::endl;
+            std::cout << "scale: " << std::sqrt(result.transformation_[0][0] * result.transformation_[0][0] + result.transformation_[1][0] * result.transformation_[1][0]) << std::endl;
             std::cout << "match.template_id: " << match.template_id << std::endl;
             std::cout << "match.similarity: " << match.similarity << std::endl;
         }
@@ -345,6 +333,6 @@ int main1()
 {
 
     MIPP_test();
-    angle_test("test"); // test or train
+    angle_test("test", true); // test or train
     return 0;
 }

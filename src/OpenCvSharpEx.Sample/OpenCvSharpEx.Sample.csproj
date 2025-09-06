@@ -117,7 +117,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\OpenCvSharpEx\OpenCvSharpEx.csproj">
-      <Project>{8f1a143e-afee-4930-9edc-ee17c62fe3a9}</Project>
+      <Project>{05783a47-ac68-7ef9-40e4-5ddfa83e14c7}</Project>
       <Name>OpenCvSharpEx</Name>
     </ProjectReference>
   </ItemGroup>

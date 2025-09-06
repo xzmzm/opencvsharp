@@ -51,9 +51,10 @@ namespace OpenCvSharpEx.Sample
             using (var image = Cv2.ImRead(imageFile))
             {
                 if (image.Channels() > 1)
-                    Cv2.CvtColor(image, image, ColorConversionCodes.RGB2GRAY);
+                    Cv2.CvtColor(image, image, ColorConversionCodes.BGR2GRAY);
                 var sw = Stopwatch.StartNew();
-                var features = this.shapeMatcher.GetFeatures(1);
+                this.shapeMatcher.UseFusion = true;
+                this.shapeMatcher.Refinement = RefinementMethod.Quadratic;
                 var r = this.shapeMatcher.Search(image);
                 Debug.WriteLine($"Time: {sw.ElapsedMilliseconds} ms");
             }
@@ -65,7 +66,8 @@ namespace OpenCvSharpEx.Sample
             {
                 using (var b = this.pattern.ToBitmap())
                 {
-                    var features = this.shapeMatcher.GetFeatures(0);
+                    var templateInfo = this.shapeMatcher.GetTemplate(0);
+                    var features = templateInfo.Features;
                     var g = e.Graphics;
                     g.DrawImage(b, 0, 0);
                     foreach (var f in features)

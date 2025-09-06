@@ -30,13 +30,19 @@ namespace OpenCvSharpEx.Internal
         [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern ExceptionStatus shapematcher_ShapeMatcher_delete(IntPtr shapeMatcherObj);
         [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-        public static extern ExceptionStatus shapematcher_ShapeMatcher_teach(IntPtr shapeMatcherObj, IntPtr pattern);
+        public static extern ExceptionStatus shapematcher_ShapeMatcher_teach(IntPtr shapeMatcherObj, IntPtr pattern, int nFeatures, int pyramidLevels);
         [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-        public static extern ExceptionStatus shapematcher_ShapeMatcher_search(IntPtr shapeMatcherObj, IntPtr image, bool refineResults, out OpenCvSharp.Point2d location, out double angle, ref double score, out int templateID);
+        public static extern ExceptionStatus shapematcher_ShapeMatcher_search(IntPtr shapeMatcherObj, IntPtr image, int refinementLevel, out OpenCvSharp.Point2d location, out double angle, ref double score, out int templateID, out OpenCvSharp.RotatedRect rotatedBounds);
         [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-        public static extern ExceptionStatus shapematcher_ShapeMatcher_searchFusion(IntPtr shapeMatcherObj, IntPtr image, bool refineResults, out OpenCvSharp.Point2d location, out double angle, ref double score, out int templateID);
+        public static extern ExceptionStatus shapematcher_ShapeMatcher_searchFusion(IntPtr shapeMatcherObj, IntPtr image, int refinementLevel, out OpenCvSharp.Point2d location, out double angle, ref double score, out int templateID, out OpenCvSharp.RotatedRect rotatedBounds);
         [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern ExceptionStatus shapematcher_ShapeMatcher_getPaddedPattern(IntPtr shapeMatcherObj, double angle, IntPtr outPaddedPattern);
+        [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern ExceptionStatus shapematcher_ShapeMatcher_getTemplate(IntPtr shapeMatcherObj, int templateIndex, out float angle, out float scale, IntPtr features, out int count);
+        [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern ExceptionStatus shapematcher_ShapeMatcher_getTemplate(IntPtr shapeMatcherObj, int templateIndex, out float angle, out float scale, [Out] Feature[] features, out int count);
+        [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern ExceptionStatus shapematcher_ShapeMatcher_getPatternOffset(IntPtr shapeMatcherObj, out OpenCvSharp.Point offset);
         [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern ExceptionStatus shapematcher_ShapeMatcher_getFeatures(IntPtr shapeMatcherObj, int templateIndex, IntPtr features, out int count);
         [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]

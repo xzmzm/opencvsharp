@@ -6,13 +6,13 @@ using OpenCvSharpEx.Internal;
 
 namespace OpenCvSharpEx
 {
-    public class RotatedPattenMatcher : IDisposable
+    public class RotatedPatternMatcher : IDisposable
     {
-        public RotatedPattenMatcher()
+        public RotatedPatternMatcher()
         {
 
         }
-        IntPtr rotatedPatternMatcherObj;
+        private IntPtr rotatedPatternMatcherObj;
         public double AcceptancePercentage
         {
             get;
@@ -68,12 +68,13 @@ namespace OpenCvSharpEx
             for (int i = 0; i < r.Length; ++i)
             {
                 r[i] = (RotationPatternMatcherResults)System.Runtime.InteropServices.Marshal.PtrToStructure(p, typeof(RotationPatternMatcherResults));
+                r[i].Bounds = r[i].RotatedBounds.BoundingRect2d();
                 p += System.Runtime.InteropServices.Marshal.SizeOf(typeof(RotationPatternMatcherResults));
             }
             System.Runtime.InteropServices.Marshal.FreeCoTaskMem(results);
             return r;
         }
-        ~RotatedPattenMatcher()
+        ~RotatedPatternMatcher()
         {
             this.Dispose();
         }

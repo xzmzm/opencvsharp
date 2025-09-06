@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
@@ -15,8 +16,26 @@ namespace OpenCvSharpEx.Sample
         [STAThread]
         static void Main()
         {
-            SetDllDirectory(@"Q:\src\vision\opencvsharp\src\Release\x64");
-            SetDllDirectory(@"D:\src\vision\opencvsharp\src\Release\x64");
+            var additionalPathDirs = new[]
+{
+                @"Q:\src\vision\opencvsharp\src\Release\x64",
+                @"D:\src\vision\opencvsharp\src\Release\x64"
+            };
+
+            void AddDirectoriesToPath(string[] additionalPathDirs1)
+            {
+                var path = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
+                foreach (var dir in additionalPathDirs1)
+                {
+                    if (Directory.Exists(dir) && !path.Contains(dir))
+                    {
+                        path = dir + ";" + path;
+                    }
+                }
+                Environment.SetEnvironmentVariable("PATH", path);
+            }
+            AddDirectoriesToPath(additionalPathDirs);
+
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new Form1());

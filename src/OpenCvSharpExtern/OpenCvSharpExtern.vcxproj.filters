@@ -121,6 +121,9 @@
     <ClCompile Include="RotatedPatternMatcher\rotatedpatternmatcher.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="ShapeMatcher\cuda_icp\scene\kdtree_scene\kdtree_scene.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bgsegm.h">
@@ -401,6 +404,9 @@
     </ClInclude>
     <ClInclude Include="RotatedPatternMatcher\rotatedpatternmatcher.h">
       <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ShapeMatcher\cuda_icp\scene\kdtree_scene\kdtree_scene.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

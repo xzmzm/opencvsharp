@@ -125,3 +125,7 @@ UpgradeLog*.XML
 Help
 /tesseract_files
 *.csproj.dtbcache.json
+*.db-shm
+*.db-wal
+*.vsidx
+.dtbcache.v2

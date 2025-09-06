@@ -253,6 +253,7 @@ copy "$(SolutionDir)opencv_files\opencv_win_x64\x64\vc17\bin\opencv_videoio_ffmp
     <ClCompile Include="ShapeMatcher\cuda_icp\icp.cpp" />
     <ClCompile Include="ShapeMatcher\cuda_icp\scene\common.cpp" />
     <ClCompile Include="ShapeMatcher\cuda_icp\scene\edge_scene\edge_scene.cpp" />
+    <ClCompile Include="ShapeMatcher\cuda_icp\scene\kdtree_scene\kdtree_scene.cpp" />
     <ClCompile Include="ShapeMatcher\line2Dup.cpp" />
     <ClCompile Include="ShapeMatcher\test.cpp" />
     <ClCompile Include="std_string.cpp" />
@@ -333,6 +334,7 @@ copy "$(SolutionDir)opencv_files\opencv_win_x64\x64\vc17\bin\opencv_videoio_ffmp
     <ClInclude Include="photo_Tonemap.h" />
     <ClInclude Include="quality.h" />
     <ClInclude Include="RotatedPatternMatcher\rotatedpatternmatcher.h" />
+    <ClInclude Include="ShapeMatcher\cuda_icp\scene\kdtree_scene\kdtree_scene.h" />
     <ClInclude Include="shape_ShapeDistanceExtractor.h" />
     <ClInclude Include="std_string.h" />
     <ClInclude Include="std_vector_nesting.h" />
