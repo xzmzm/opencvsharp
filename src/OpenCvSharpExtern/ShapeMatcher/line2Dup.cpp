@@ -295,7 +295,7 @@ namespace line2Dup
     }
 
     static void quantizedOrientations(const Mat &src, Mat &magnitude,
-                                      Mat &angle, Mat &angle_ori, float threshold, Mat& dx, Mat& dy)
+                                      Mat &angle, Mat &angle_ori, float threshold, Mat &dx, Mat &dy)
     {
         Mat smoothed;
         // Compute horizontal and vertical image derivatives on all color channels separately
@@ -1114,15 +1114,16 @@ namespace line2Dup
         dy_ = quantizers[0]->dy_;
 
         // pyramid level -> ColorGradient -> quantization
-        LinearMemoryPyramid lm_pyramid(pyramid_levels,
-                                       std::vector<LinearMemories>(1, LinearMemories(8)));
+        this->last_lm_pyramid.assign(pyramid_levels,
+                                     std::vector<LinearMemories>(1, LinearMemories(8)));
+
+        this->last_sizes.clear();
 
         // For each pyramid level, precompute linear memories for each ColorGradient
-        std::vector<Size> sizes;
         for (int l = 0; l < pyramid_levels; ++l)
         {
             int T = T_at_level[l];
-            std::vector<LinearMemories> &lm_level = lm_pyramid[l];
+            std::vector<LinearMemories> &lm_level = this->last_lm_pyramid[l];
 
             if (l > 0)
             {
@@ -1143,7 +1144,7 @@ namespace line2Dup
                     linearize(response_maps[j], memories[j], T);
             }
 
-            sizes.push_back(quantized.size());
+            this->last_sizes.push_back(quantized.size());
         }
 
 #ifdef DEBUG_MATCH_TIME
@@ -1155,7 +1156,7 @@ namespace line2Dup
             // Match all templates
             TemplatesMap::const_iterator it = class_templates.begin(), itend = class_templates.end();
             for (; it != itend; ++it)
-                matchClass(lm_pyramid, sizes, threshold, matches, it->first, it->second);
+                matchClass(this->last_lm_pyramid, this->last_sizes, threshold, matches, it->first, it->second);
         }
         else
         {
@@ -1164,7 +1165,7 @@ namespace line2Dup
             {
                 TemplatesMap::const_iterator it = class_templates.find(class_ids[i]);
                 if (it != class_templates.end())
-                    matchClass(lm_pyramid, sizes, threshold, matches, it->first, it->second);
+                    matchClass(this->last_lm_pyramid, this->last_sizes, threshold, matches, it->first, it->second);
             }
         }
 
@@ -1206,10 +1207,8 @@ namespace line2Dup
         std::vector<Match> matches;
 
         // --------- fusion version of response map creation
-
-        // results we want
-        LinearMemoryPyramid lm_pyramid(pyramid_levels, std::vector<LinearMemories>(1, LinearMemories(8)));
-        std::vector<Size> sizes;
+        this->last_lm_pyramid.assign(pyramid_levels, std::vector<LinearMemories>(1, LinearMemories(8)));
+        this->last_sizes.clear();
 
         bool set_produce_dxy = true;
 
@@ -1241,10 +1240,10 @@ namespace line2Dup
             // use old linear function will create those for us
             for (int ori = 0; ori < 8; ori++)
             {
-                lm_pyramid[cur_l][0][ori] = cv::Mat(cur_T * cur_T, imgCols / cur_T * imgRows / cur_T, CV_8U);
+                this->last_lm_pyramid[cur_l][0][ori] = cv::Mat(cur_T * cur_T, imgCols / cur_T * imgRows / cur_T, CV_8U);
             }
 
-            sizes.push_back({imgCols, imgRows});
+            this->last_sizes.push_back({imgCols, imgRows});
 
             cv::Mat src;
             if (cur_l == 0)
@@ -1281,13 +1280,13 @@ namespace line2Dup
             manager.get_nodes().push_back(std::make_shared<simple_fusion::Spreadnx1Node_8U_8U>(cur_T + 1));
             manager.get_nodes().push_back(std::make_shared<simple_fusion::Response1x1Node_8U_8U>());
             manager.get_nodes().push_back(std::make_shared<simple_fusion::LinearizeTxTNode_8U_8U>(cur_T, imgCols,
-                                                                                                  lm_pyramid[cur_l][0]));
+                                                                                                  this->last_lm_pyramid[cur_l][0]));
             manager.arrange(imgRows, imgCols);
 
             std::vector<cv::Mat> in_v;
             in_v.push_back(src);
 
-            std::vector<cv::Mat> out_v = lm_pyramid[cur_l][0];
+            std::vector<cv::Mat> out_v = this->last_lm_pyramid[cur_l][0];
             manager.process(in_v, out_v);
             // timer.out("fusion time");
         }
@@ -1298,7 +1297,7 @@ namespace line2Dup
             // Match all templates
             TemplatesMap::const_iterator it = class_templates.begin(), itend = class_templates.end();
             for (; it != itend; ++it)
-                matchClass(lm_pyramid, sizes, threshold, matches, it->first, it->second);
+                matchClass(this->last_lm_pyramid, this->last_sizes, threshold, matches, it->first, it->second);
         }
         else
         {
@@ -1307,7 +1306,7 @@ namespace line2Dup
             {
                 TemplatesMap::const_iterator it = class_templates.find(class_ids[i]);
                 if (it != class_templates.end())
-                    matchClass(lm_pyramid, sizes, threshold, matches, it->first, it->second);
+                    matchClass(this->last_lm_pyramid, this->last_sizes, threshold, matches, it->first, it->second);
             }
         }
 
@@ -1332,7 +1331,7 @@ namespace line2Dup
                               const std::vector<Size> &sizes,
                               float threshold, std::vector<Match> &matches,
                               const std::string &class_id,
-                              const std::vector<TemplatePyramid> &template_pyramids) const
+                              const std::vector<TemplatePyramid> &template_pyramids)
     {
         //#pragma omp declare reduction \
   //  (omp_insert: std::vector<Match>: omp_out.insert(omp_out.end(), omp_in.begin(), omp_in.end()))

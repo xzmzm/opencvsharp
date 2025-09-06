@@ -109,6 +109,34 @@ void ShapeMatcher::getPaddedPattern(double angle, cv::Mat *outPaddedPattern)
     *outPaddedPattern = this->shapes->src_of(info);
 }
 
+static const unsigned char *accessLinearMemory(const std::vector<cv::Mat> &linear_memories,
+                                               const line2Dup::Feature &f, int T, int W)
+{
+    // Retrieve the TxT grid of linear memories associated with the feature label
+    const cv::Mat &memory_grid = linear_memories[f.label];
+    // The LM we want is at (x%T, y%T) in the TxT grid (stored as the rows of memory_grid)
+    int grid_x = f.x % T;
+    int grid_y = f.y % T;
+    int grid_index = grid_y * T + grid_x;
+    const unsigned char *memory = memory_grid.ptr(grid_index);
+    // Within the LM, the feature is at (x/T, y/T). W is the "width" of the LM, the
+    // input image width decimated by T.
+    int lm_x = f.x / T;
+    int lm_y = f.y / T;
+    int lm_index = lm_y * W + lm_x;
+    return memory + lm_index;
+}
+
+float computeScoreAt(const std::vector<line2Dup::Detector::LinearMemories> &lm_level,
+                     const line2Dup::Template &templ, cv::Size size, int T, int lm_index)
+{
+    int W = size.width / T;
+    float score = 0;
+    for (const auto &f : templ.features)
+        score += accessLinearMemory(lm_level[0], f, T, W)[lm_index];
+    return score;
+}
+
 void ShapeMatcher::search(cv::Mat *image, int refinementLevel, bool useFusion, cv::Point2d *retPoint, double *angle, double *score, int *templateID, cv::RotatedRect *rotatedBounds)
 {
     const int ImagePadding = 100; // A fixed padding value used in search.
@@ -196,7 +224,7 @@ void ShapeMatcher::search(cv::Mat *image, int refinementLevel, bool useFusion, c
     {
     case 0: // None
         *retPoint = cv::Point2d(x, y);
-        *angle = init_angle;
+        *angle = -init_angle; // RotatedRect uses clockwise angle, while init_angle is counter-clockwise.
         *score = match.similarity;
         *templateID = match.template_id;
         break;
@@ -204,7 +232,8 @@ void ShapeMatcher::search(cv::Mat *image, int refinementLevel, bool useFusion, c
     {
         cv::Mat rotated_template;
         cv::Point2f rot_center(this->pattern.cols / 2.0f, this->pattern.rows / 2.0f);
-        cv::Mat rot_mat = cv::getRotationMatrix2D(rot_center, -init_angle, 1.0);
+        // init_angle is counter-clockwise. To rotate the pattern to match, we use init_angle.
+        cv::Mat rot_mat = cv::getRotationMatrix2D(rot_center, init_angle, 1.0);
         cv::warpAffine(this->pattern, rotated_template, rot_mat, this->pattern.size());
 
         int search_radius = 4; // search in a (2*radius+1) x (2*radius+1) neighborhood
@@ -223,7 +252,7 @@ void ShapeMatcher::search(cv::Mat *image, int refinementLevel, bool useFusion, c
         {
             // Fallback to coarse result if ROI is out of bounds
             *retPoint = cv::Point2d(x, y);
-            *angle = init_angle;
+            *angle = -init_angle; // Convert to clockwise
             *score = match.similarity;
             *templateID = match.template_id;
             break;
@@ -270,7 +299,7 @@ void ShapeMatcher::search(cv::Mat *image, int refinementLevel, bool useFusion, c
         double final_y = search_roi.y + refined_peak_y + rotated_template.rows / 2.0;
 
         *retPoint = cv::Point2d(final_x, final_y);
-        *angle = init_angle;
+        *angle = -init_angle;      // Convert to clockwise
         *score = match.similarity; // Using original score for consistency
         *templateID = match.template_id;
         break;
@@ -314,10 +343,134 @@ void ShapeMatcher::search(cv::Mat *image, int refinementLevel, bool useFusion, c
                 final_angle_deg -= 360.0;
             while (final_angle_deg <= -180.0)
                 final_angle_deg += 360.0;
-            *angle = final_angle_deg;
+            *angle = -final_angle_deg; // Convert to clockwise
         }
 
         *score = match.similarity;
+        *templateID = match.template_id;
+        break;
+    }
+    case 3: // ICP_Edge
+    {
+        Scene_edge scene;
+        std::vector<::Vec2f> pcd_buffer, normal_buffer;
+        scene.init_Scene_edge_cpu(this->detector->dx_, this->detector->dy_, pcd_buffer, normal_buffer);
+
+        if (padded_img.channels() == 1)
+            cvtColor(padded_img, padded_img, cv::COLOR_GRAY2BGR);
+
+        std::vector<::Vec2f> model_pcd(templ[0].features.size());
+        for (int i = 0; i < templ[0].features.size(); i++)
+        {
+            auto &feat = templ[0].features[i];
+            model_pcd[i] = {
+                float(feat.x + match.x),
+                float(feat.y + match.y)};
+        }
+
+        // subpixel, also refine scale
+        cuda_icp::RegistrationResult result = cuda_icp::sim3::ICP2D_Point2Plane_cpu(model_pcd, scene);
+
+        {
+            double center_x = match.x - templ[0].tl_x + train_img_half_width;
+            double center_y = match.y - templ[0].tl_y + train_img_half_width;
+            double new_x = result.transformation_[0][0] * center_x + result.transformation_[0][1] * center_y + result.transformation_[0][2];
+            double new_y = result.transformation_[1][0] * center_x + result.transformation_[1][1] * center_y + result.transformation_[1][2];
+            *retPoint = cv::Point2d(new_x, new_y);
+        }
+        {
+            double initial_angle_rad = init_angle * CV_PI / 180.0;
+            double refinement_angle_rad = std::atan2(result.transformation_[1][0], result.transformation_[0][0]);
+            double final_angle_rad = initial_angle_rad + refinement_angle_rad;
+            double final_angle_deg = final_angle_rad * 180.0 / CV_PI;
+            while (final_angle_deg > 180.0)
+                final_angle_deg -= 360.0;
+            while (final_angle_deg <= -180.0)
+                final_angle_deg += 360.0;
+            *angle = -final_angle_deg; // Convert to clockwise
+        }
+
+        *score = match.similarity;
+        *templateID = match.template_id;
+        break;
+    }
+    case 4: // FastQuadratic
+    {
+        int best_tid = match.template_id;
+        if (best_tid < 0 || best_tid >= this->infos_have_templ.size())
+        {
+            // Fallback to coarse result
+            *retPoint = cv::Point2d(x, y);
+            *angle = -init_angle;
+            *score = match.similarity;
+            *templateID = match.template_id;
+            break;
+        }
+
+        int num_templates = (int)this->infos_have_templ.size();
+        int prev_tid = (best_tid - 1 + num_templates) % num_templates;
+        int next_tid = (best_tid + 1) % num_templates;
+
+        int lowest_level_idx = this->detector->pyramidLevels() - 1;
+        auto templ_curr = this->detector->getTemplates("test", best_tid)[lowest_level_idx];
+        auto templ_prev = this->detector->getTemplates("test", prev_tid)[lowest_level_idx];
+        auto templ_next = this->detector->getTemplates("test", next_tid)[lowest_level_idx];
+
+        const auto &lm_pyramid = this->detector->last_lm_pyramid;
+        const auto &sizes = this->detector->last_sizes;
+        const auto &T_at_level = this->detector->T_at_level;
+
+        if (lm_pyramid.empty())
+        { // Fallback if no data
+            *retPoint = cv::Point2d(x, y);
+            *angle = -init_angle;
+            *score = match.similarity;
+            *templateID = match.template_id;
+            break;
+        }
+
+        const auto &lowest_lm = lm_pyramid.back();
+        cv::Size lowest_size = sizes.back();
+        int lowest_T = T_at_level.back();
+
+        int pyramid_scale = 1 << lowest_level_idx;
+        int offset = lowest_T / 2 + (lowest_T % 2 - 1);
+        int coarse_x_low = (int)round((match.x / pyramid_scale) - offset);
+        int coarse_y_low = (int)round((match.y / pyramid_scale) - offset);
+        int lm_index = (coarse_y_low / lowest_T) * (lowest_size.width / lowest_T) + (coarse_x_low / lowest_T);
+
+        float raw_score_prev = computeScoreAt(lowest_lm, templ_prev, lowest_size, lowest_T, lm_index);
+        float raw_score_next = computeScoreAt(lowest_lm, templ_next, lowest_size, lowest_T, lm_index);
+
+        float s_curr = match.similarity;
+        float s_prev = raw_score_prev * 100.0f / (4.0f * templ_prev.features.size());
+        float s_next = raw_score_next * 100.0f / (4.0f * templ_next.features.size());
+
+        double a_curr = this->infos_have_templ[best_tid].angle;
+
+        double y1 = s_prev, y2 = s_curr, y3 = s_next;
+        double den = 2 * (y1 + y3 - 2 * y2);
+
+        double refined_angle = a_curr;
+        double refined_score = s_curr;
+
+        if (std::abs(den) > 1e-5)
+        {
+            double angle_offset = (y1 - y3) * this->angleStep / den;
+            refined_angle = a_curr + angle_offset;
+
+            double a = (y1 + y3 - 2 * y2) / (2 * this->angleStep * this->angleStep);
+            double b = (y3 - y1) / (2 * this->angleStep);
+            refined_score = a * angle_offset * angle_offset + b * angle_offset + y2;
+        }
+
+        *retPoint = cv::Point2d(x, y);
+        while (refined_angle >= 360.0) refined_angle -= 360.0;
+        while (refined_angle < 0.0) refined_angle += 360.0;
+        refined_angle = refined_angle >= 180 ? (refined_angle - 360) : refined_angle;
+        *angle = -refined_angle;
+
+        *score = refined_score > 100.0 ? 100.0 : (refined_score < 0 ? 0 : refined_score);
         *templateID = match.template_id;
         break;
     }

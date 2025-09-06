@@ -187,7 +187,7 @@ namespace line2Dup
 
         cv::Mat dx_, dy_;
 
-    protected:
+    public:
         cv::Ptr<ColorGradient> modality;
         int pyramid_levels;
         std::vector<int> T_at_level;
@@ -200,11 +200,15 @@ namespace line2Dup
         // Indexed as [pyramid level][ColorGradient][quantized label]
         typedef std::vector<std::vector<LinearMemories>> LinearMemoryPyramid;
 
+        // To expose results from match operation for refinement
+        LinearMemoryPyramid last_lm_pyramid;
+        std::vector<cv::Size> last_sizes;
+
         void matchClass(const LinearMemoryPyramid &lm_pyramid,
                         const std::vector<cv::Size> &sizes,
                         float threshold, std::vector<Match> &matches,
                         const std::string &class_id,
-                        const std::vector<TemplatePyramid> &template_pyramids) const;
+                        const std::vector<TemplatePyramid> &template_pyramids);
     };
 
 } // namespace line2Dup

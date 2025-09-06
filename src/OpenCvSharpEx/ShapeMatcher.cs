@@ -15,8 +15,12 @@ namespace OpenCvSharpEx
         None,
         /// <summary>Uses quadratic interpolation on a Normalized Cross-Correlation (NCC) score map in a small neighborhood. Fast and provides sub-pixel accuracy.</summary>
         Quadratic,
-        /// <summary>Uses Iterative Closest Point (ICP) algorithm for the most accurate alignment. Slowest.</summary>
-        ICP
+        /// <summary>Uses Iterative Closest Point (ICP) algorithm with a K-D tree for the most accurate alignment. Slowest.</summary>
+        ICP,
+        /// <summary>Uses Iterative Closest Point (ICP) algorithm with an edge distance map. Can be more robust than K-D tree for noisy images.</summary>
+        ICP_Edge,
+        /// <summary>A fast variant of quadratic refinement that interpolates angle from neighboring template scores. Much faster than standard Quadratic.</summary>
+        FastQuadratic
     }
     public class ShapeMatcher : IDisposable
     {
