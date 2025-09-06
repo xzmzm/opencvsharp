@@ -1,38 +1,27 @@
-﻿using System;
-
-namespace OpenCvSharp;
+﻿namespace OpenCvSharp;
 // ReSharper disable InconsistentNaming
 #pragma warning disable 1591
 
 /// <summary>
 /// Matrix data type (depth and number of channels)
 /// </summary>
-public readonly struct MatType : IEquatable<MatType>, IEquatable<int>
+public readonly record struct MatType(int value) : IEquatable<int>
 {
     /// <summary>
     /// Entity value
     /// </summary>
-    private readonly int value;
+    private readonly int value = value;
 
     /// <summary>
     /// Entity value
     /// </summary>
     public int Value => value;
 
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="value"></param>
-    public MatType(int value)
-    {
-        this.value = value;
-    }
-
     /// <summary> 
     /// </summary>
     /// <param name="self"></param>
     /// <returns></returns>
-    public static implicit operator int(MatType self)
+    public static explicit operator int(MatType self)
     {
         return self.value;
     }
@@ -40,10 +29,7 @@ public readonly struct MatType : IEquatable<MatType>, IEquatable<int>
     /// <summary> 
     /// </summary>
     /// <returns></returns>
-    public int ToInt32()
-    {
-        return value;
-    }
+    public int ToInt32() => value;
 
     /// <summary> 
     /// </summary>
@@ -78,33 +64,9 @@ public readonly struct MatType : IEquatable<MatType>, IEquatable<int>
     /// </summary>
     public int Channels => (Value >> CV_CN_SHIFT) + 1;
 
-    public bool Equals(MatType other)
-    {
-        return value == other.value;
-    }
-
     public bool Equals(int other)
     {
         return value == other;
-    }
-
-    public override bool Equals(object? obj)
-    {
-        if (obj is null)
-            return false;
-        if (obj.GetType() != typeof (MatType))
-            return false;
-        return obj is MatType mt && Equals(mt);
-    }
-
-    public static bool operator ==(MatType self, MatType other)
-    {
-        return self.Equals(other);
-    }
-
-    public static bool operator !=(MatType self, MatType other)
-    {
-        return !self.Equals(other);
     }
 
     public static bool operator ==(MatType self, int other)
@@ -117,11 +79,6 @@ public readonly struct MatType : IEquatable<MatType>, IEquatable<int>
         return !self.Equals(other);
     }
 
-    public override int GetHashCode()
-    {
-        return value.GetHashCode();
-    }
-        
     /// <inheritdoc />
     public override string ToString()
     {

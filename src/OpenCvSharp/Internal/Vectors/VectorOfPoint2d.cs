@@ -1,5 +1,4 @@
-﻿using System;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using OpenCvSharp.Internal.Util;
 
 namespace OpenCvSharp.Internal.Vectors;
@@ -61,7 +60,7 @@ public class VectorOfPoint2d : DisposableCvObject, IStdVector<Point2d>
         var size = Size;
         if (size == 0)
         {
-            return Array.Empty<Point2d>();
+            return [];
         }
         var dst = new Point2d[size];
         using (var dstPtr = new ArrayAddress1<Point2d>(dst))

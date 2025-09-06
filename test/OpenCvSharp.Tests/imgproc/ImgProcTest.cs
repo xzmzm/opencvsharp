@@ -1,8 +1,6 @@
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
-using System.Linq;
+using OpenCvSharp.Internal.Vectors;
 using Xunit;
 
 namespace OpenCvSharp.Tests.ImgProc;
@@ -10,9 +8,18 @@ namespace OpenCvSharp.Tests.ImgProc;
 public class ImgProcTest : TestBase
 {
     [Fact]
+    public void BuildPyramidTest()
+    {
+        using var src = LoadImage("lenna.png");
+        using var dst = new VectorOfMat();
+        Cv2.BuildPyramid(src, dst, 2);
+        Assert.Equal(3, dst.Size);
+    }
+
+    [Fact]
     public void MorphologyExDilate()
     {
-        using var src = new Mat(100, 100, MatType.CV_8UC1, 255);
+        using var src = new Mat(100, 100, MatType.CV_8UC1, Scalar.All(255));
         using var dst = new Mat();
         Cv2.Rectangle(src, new Rect(30, 30, 40, 40), Scalar.Black, 1);
         Cv2.MorphologyEx(src, dst, MorphTypes.Dilate, null);
@@ -65,8 +72,8 @@ public class ImgProcTest : TestBase
     [Fact]
     public void BlendLinear()
     {
-        using var src1 = Image("tsukuba_left.png");
-        using var src2 = Image("tsukuba_right.png");
+        using var src1 = LoadImage("tsukuba_left.png");
+        using var src2 = LoadImage("tsukuba_right.png");
         using var weights = new Mat(src1.Size(), MatType.CV_32FC1, Scalar.All(0.5));
         using var dst = new Mat();
 
@@ -80,7 +87,7 @@ public class ImgProcTest : TestBase
     [Fact]
     public void Demosaicing()
     {
-        using var src = Image("lenna.png", ImreadModes.Grayscale);
+        using var src = LoadImage("lenna.png", ImreadModes.Grayscale);
         using var dst = new Mat();
         Cv2.Demosaicing(src, dst, ColorConversionCodes.BayerBG2GRAY);
 
@@ -125,14 +132,14 @@ public class ImgProcTest : TestBase
         var points = Cv2.BoxPoints(rotatedRect);
 
         Assert.Equal(4, points.Length);
-        Assert.Equal(4.932f, points[0].X, 3);
-        Assert.Equal(14.931f, points[0].Y, 3);
-        Assert.Equal(5.069f, points[1].X, 3);
-        Assert.Equal(4.932f, points[1].Y, 3);
-        Assert.Equal(15.068f, points[2].X, 3);
-        Assert.Equal(5.069f, points[2].Y, 3);
-        Assert.Equal(14.931f, points[3].X, 3);
-        Assert.Equal(15.068f, points[3].Y, 3);
+        Assert.Equal(4.932f, points[0].X, 1e-3);
+        Assert.Equal(14.931f, points[0].Y, 1e-3);
+        Assert.Equal(5.069f, points[1].X, 1e-3);
+        Assert.Equal(4.932f, points[1].Y, 1e-3);
+        Assert.Equal(15.068f, points[2].X, 1e-3);
+        Assert.Equal(5.069f, points[2].Y, 1e-3);
+        Assert.Equal(14.931f, points[3].X, 1e-3);
+        Assert.Equal(15.068f, points[3].Y, 1e-3);
     }
 
     [Fact]
@@ -141,8 +148,8 @@ public class ImgProcTest : TestBase
         var points = new[] { new Point2f(0, 0), new Point2f(10, 0), new Point2f(10, 10), new Point2f(0, 10), };
         Cv2.MinEnclosingCircle(points, out var center, out var radius);
 
-        Assert.Equal(5f, center.X, 3);
-        Assert.Equal(5f, center.Y, 3);
+        Assert.Equal(5f, center.X, 1e-3);
+        Assert.Equal(5f, center.Y, 1e-3);
         Assert.Equal(5 * Math.Sqrt(2), radius, 3);
     }
 
@@ -153,12 +160,12 @@ public class ImgProcTest : TestBase
         var area = Cv2.MinEnclosingTriangle(points, out var triangle);
 
         Assert.Equal(3, triangle.Length);
-        Assert.Equal(0f, triangle[0].X, 3);
-        Assert.Equal(-10f, triangle[0].Y, 3);
-        Assert.Equal(0f, triangle[1].X, 3);
-        Assert.Equal(10f, triangle[1].Y, 3);
-        Assert.Equal(20f, triangle[2].X, 3);
-        Assert.Equal(10f, triangle[2].Y, 3);
+        Assert.Equal(0f, triangle[0].X, 1e-3);
+        Assert.Equal(-10f, triangle[0].Y, 1e-3);
+        Assert.Equal(0f, triangle[1].X, 1e-3);
+        Assert.Equal(10f, triangle[1].Y, 1e-3);
+        Assert.Equal(20f, triangle[2].X, 1e-3);
+        Assert.Equal(10f, triangle[2].Y, 1e-3);
 
         Assert.Equal(200f, area, 3);
     }
@@ -280,11 +287,11 @@ public class ImgProcTest : TestBase
 
         foreach (var e in ellipse)
         {
-            Assert.Equal(5f, e.Center.X, 3);
-            Assert.Equal(5f, e.Center.Y, 3);
-            Assert.Equal(11.547f, e.Size.Width, 3);
-            Assert.Equal(20f, e.Size.Height, 3);
-            Assert.Equal(0f, e.Angle, 3);
+            Assert.Equal(5f, e.Center.X, 1e-3);
+            Assert.Equal(5f, e.Center.Y, 1e-3);
+            Assert.Equal(11.547f, e.Size.Width, 1e-3);
+            Assert.Equal(20f, e.Size.Height, 1e-3);
+            Assert.Equal(0f, e.Angle, 1e-3);
         }
     }
 
@@ -338,7 +345,7 @@ public class ImgProcTest : TestBase
                 new Point(10, 10),
                 new Point(5, 5),
             };
-            using var src = new Mat(contour.Length, cols, matType, contour);
+            using var src = Mat.FromPixelData(contour.Length, cols, matType, contour);
             using var dst = new Mat();
             Cv2.FitLine(src, dst, DistanceTypes.L2, 0, 0, 0.01);
 
@@ -348,8 +355,8 @@ public class ImgProcTest : TestBase
 
             Assert.Equal(Math.Sqrt(2) / 2, dst.Get<float>(0), 3);
             Assert.Equal(Math.Sqrt(2) / 2, dst.Get<float>(1), 3);
-            Assert.Equal(5, dst.Get<float>(2), 3);
-            Assert.Equal(5, dst.Get<float>(3), 3);
+            Assert.Equal(5, dst.Get<float>(2), 1e-3);
+            Assert.Equal(5, dst.Get<float>(3), 1e-3);
         }
     }
 
@@ -403,10 +410,10 @@ public class ImgProcTest : TestBase
                 return enumerable.Select(p => new Point(p.X, p.Y)).ToArray();
             }
 
-            using var img = new Mat(200, 200, MatType.CV_8UC3, 0);
-            img.Polylines(new[] { ToPoints(rr1.Points()) }, true, Scalar.Red);
-            img.Polylines(new[] { ToPoints(rr2.Points()) }, true, Scalar.Green);
-            img.Polylines(new[] { ToPoints(intersectingRegion) }, true, Scalar.White);
+            using var img = new Mat(200, 200, MatType.CV_8UC3, new Scalar(0));
+            img.Polylines([ToPoints(rr1.Points())], true, Scalar.Red);
+            img.Polylines([ToPoints(rr2.Points())], true, Scalar.Green);
+            img.Polylines([ToPoints(intersectingRegion)], true, Scalar.White);
 
             Window.ShowImages(img);
         }
@@ -476,9 +483,9 @@ public class ImgProcTest : TestBase
 
         var colorVec = color.ToVec3b();
         var expected = new Vec3b[100, 100];
-        for (int y = 10; y < 90; y++)
+        for (var y = 10; y < 90; y++)
         {
-            for (int x = 10; x < 90; x++)
+            for (var x = 10; x < 90; x++)
             {
                 expected[y, x] = colorVec;
             }
@@ -497,15 +504,15 @@ public class ImgProcTest : TestBase
         if (img.Type() != MatType.CV_8UC3)
             throw new ArgumentException("Mat.Type() != 8UC3", nameof(img));
 
-        int height = img.Rows;
-        int width = img.Cols;
+        var height = img.Rows;
+        var width = img.Cols;
         if (height != expected.GetLength(0) || width != expected.GetLength(1))
             throw new ArgumentException("size mismatch");
 
         var indexer = img.GetGenericIndexer<Vec3b>();
-        for (int y = 0; y < height; y++)
+        for (var y = 0; y < height; y++)
         {
-            for (int x = 0; x < width; x++)
+            for (var x = 0; x < width; x++)
             {
                 var expectedValue = expected[y, x];
                 var actualValue = indexer[y, x];
@@ -524,7 +531,7 @@ public class ImgProcTest : TestBase
     [Fact]
     public void ApplyColorMap()
     {
-        using var src = Image("building.jpg", ImreadModes.Color);
+        using var src = LoadImage("building.jpg", ImreadModes.Color);
         using var dst = new Mat();
         Cv2.ApplyColorMap(src, dst, ColormapTypes.Cool);
 
@@ -539,7 +546,7 @@ public class ImgProcTest : TestBase
     [Fact]
     public void CornerHarris()
     {
-        using var src = Image("building.jpg", ImreadModes.Grayscale);
+        using var src = LoadImage("building.jpg", ImreadModes.Grayscale);
         using var corners = new Mat();
         using var dst = new Mat();
         Cv2.CornerHarris(src, corners, 2, 3, 0.04);
@@ -555,7 +562,7 @@ public class ImgProcTest : TestBase
     [Fact]
     public void CornerMinEigenVal()
     {
-        using var src = Image("building.jpg", ImreadModes.Grayscale);
+        using var src = LoadImage("building.jpg", ImreadModes.Grayscale);
         using var corners = new Mat();
         using var dst = new Mat();
         Cv2.CornerMinEigenVal(src, corners, 2, 3, BorderTypes.Reflect);
@@ -571,7 +578,7 @@ public class ImgProcTest : TestBase
     [Fact]
     public void FindContours()
     {
-        using var src = Image("markers_6x6_250.png", ImreadModes.Grayscale);
+        using var src = LoadImage("markers_6x6_250.png", ImreadModes.Grayscale);
         Cv2.BitwiseNot(src, src);
         Cv2.FindContours(
             src,
@@ -603,12 +610,12 @@ public class ImgProcTest : TestBase
 
         using var hist = new Mat();
         Cv2.CalcHist(
-            images: new[] { src },
-            channels: new[] {0},
+            images: [src],
+            channels: [0],
             mask: null,
             hist: hist,
             dims: 1,
-            histSize: new[] {256},
+            histSize: [256],
             ranges: new[] { new Rangef(0, 256) });
 
         if (Debugger.IsAttached)
@@ -619,7 +626,7 @@ public class ImgProcTest : TestBase
             using var histImage = new Mat(histH, histW, MatType.CV_8UC3, Scalar.All(0));
             Cv2.Normalize(hist, hist, 0, histImage.Rows, NormTypes.MinMax, -1);
 
-            for (int i = 0; i < 256; i++)
+            for (var i = 0; i < 256; i++)
             {
                 var pt1 = new Point2d(binW * (i - 1), histH - Math.Round(hist.At<float>(i - 1)));
                 var pt2 = new Point2d(binW * (i), histH - Math.Round(hist.At<float>(i)));
@@ -679,8 +686,63 @@ public class ImgProcTest : TestBase
                 Cv2.Line(view, line.P1, line.P2, Scalar.Red);
             }
 
-            Window.ShowImages(new[] {src, binary, view}, new[] {"src", "binary", "lines"});
+            Window.ShowImages([src, binary, view], ["src", "binary", "lines"]);
         }
+    }
+
+    [Fact]
+    public void HoughLinesPointSet()
+    {
+        Vec2f[] points =
+        [
+            new(0.0f, 369.0f),
+            new(10.0f, 364.0f), 
+            new(20.0f, 358.0f), 
+            new(30.0f, 352.0f), 
+            new(40.0f, 346.0f),
+            new(50.0f, 341.0f), 
+            new(60.0f, 335.0f), 
+            new(70.0f, 329.0f), 
+            new(80.0f, 323.0f),
+            new(90.0f, 318.0f),
+            new(100.0f, 312.0f), 
+            new(110.0f, 306.0f), 
+            new(120.0f, 300.0f), 
+            new(130.0f, 295.0f),
+            new(140.0f, 289.0f),
+            new(150.0f, 284.0f),
+            new(160.0f, 277.0f), 
+            new(170.0f, 271.0f),
+            new(180.0f, 266.0f),
+            new(190.0f, 260.0f)
+        ];
+
+        const int
+            linesMax = 20,
+            threshold = 1;
+        const double 
+            rhoMin = 0.0f, 
+            rhoMax = 360.0f, 
+            rhoStep = 1,
+            thetaMin = 0.0f,
+            thetaMax = Cv2.PI / 2.0f, 
+            thetaStep = Cv2.PI / 180.0f;
+
+        using var pointsMat = new Mat(points.Length, 1, MatType.CV_32FC2);
+        pointsMat.SetArray(points);
+        using var linesMat = new Mat();
+        Cv2.HoughLinesPointSet(pointsMat, linesMat, linesMax, threshold, rhoMin, rhoMax, rhoStep, thetaMin, thetaMax, thetaStep); 
+        
+        Assert.False(linesMat.Empty());
+        Assert.Equal(MatType.CV_64FC3, linesMat.Type());
+        
+        Assert.True(linesMat.GetArray(out Vec3d[] lines));
+        Assert.NotEmpty(lines);
+
+        var (votes, rho, theta) = lines[0];
+        Assert.True(votes > 10);
+        Assert.Equal(320, rho, 6);
+        Assert.Equal(1.0471975803375244, theta, 6);
     }
 
     [Fact]

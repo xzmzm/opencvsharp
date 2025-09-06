@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using OpenCvSharp.Internal;
+﻿using OpenCvSharp.Internal;
 using OpenCvSharp.XImgProc.Segmentation;
 
 // ReSharper disable UnusedMember.Global
@@ -248,7 +245,7 @@ public static class CvXImgProc
         }
 
         /// <summary>
-        /// Check whether a custom made structuring element can be used with run length morphological operations.
+        /// Check whether a custom-made structuring element can be used with run length morphological operations.
         /// (It must consist of a continuous array of single runs per row)
         /// </summary>
         /// <param name="rlStructuringElement"></param>
@@ -579,7 +576,7 @@ public static class CvXImgProc
         if (templ is null)
             throw new ArgumentNullException(nameof(templ));
         if (result is null)
-            throw new ArgumentNullException(nameof(img));
+            throw new ArgumentNullException(nameof(result));
         img.ThrowIfDisposed();
         templ.ThrowIfDisposed();
         result.ThrowIfNotReady();

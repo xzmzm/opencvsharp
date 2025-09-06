@@ -1,5 +1,4 @@
-﻿using System;
-using OpenCvSharp.Internal;
+﻿using OpenCvSharp.Internal;
 
 namespace OpenCvSharp;
 
@@ -42,12 +41,8 @@ public sealed class MergeDebevec : MergeExposures
         base.DisposeManaged();
     }
 
-    private class Ptr : OpenCvSharp.Ptr
+    private class Ptr(IntPtr ptr) : OpenCvSharp.Ptr(ptr)
     {
-        public Ptr(IntPtr ptr) : base(ptr)
-        {
-        }
-
         public override IntPtr Get()
         {
             var res = NativeMethods.photo_Ptr_MergeDebevec_get(ptr);

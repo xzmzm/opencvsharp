@@ -1,5 +1,4 @@
-﻿using System;
-using OpenCvSharp.Internal;
+﻿using OpenCvSharp.Internal;
 
 namespace OpenCvSharp;
 
@@ -85,7 +84,7 @@ public class PCA : DisposableCvObject
             NativeMethods.HandleException(
                 NativeMethods.core_PCA_eigenvectors(ptr, out var ret));
             GC.KeepAlive(this);
-            return new Mat(ret);
+            return Mat.FromNativePointer(ret);
         }
     }
 
@@ -100,7 +99,7 @@ public class PCA : DisposableCvObject
             NativeMethods.HandleException(
                 NativeMethods.core_PCA_eigenvalues(ptr, out var ret));
             GC.KeepAlive(this);
-            return new Mat(ret);
+            return Mat.FromNativePointer(ret);
         }
     }
 
@@ -115,7 +114,7 @@ public class PCA : DisposableCvObject
             NativeMethods.HandleException(
                 NativeMethods.core_PCA_mean(ptr, out var ret));
             GC.KeepAlive(this);
-            return new Mat(ret);
+            return Mat.FromNativePointer(ret);
         }
     }
 
@@ -216,7 +215,7 @@ public class PCA : DisposableCvObject
             NativeMethods.core_PCA_project1(ptr, vec.CvPtr, out var ret));
         GC.KeepAlive(this);
         GC.KeepAlive(vec);
-        return new Mat(ret);
+        return Mat.FromNativePointer(ret);
     }
 
     /// <summary>

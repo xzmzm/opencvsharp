@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using OpenCvSharp.Internal;
+﻿using OpenCvSharp.Internal;
 using OpenCvSharp.Internal.Vectors;
 
 namespace OpenCvSharp.Face;
@@ -330,11 +328,7 @@ public sealed class FacemarkLBF : Facemark
         /// <summary>
         /// 
         /// </summary>
-#if NET40
-            public int[] FeatsM
-#else
         public IReadOnlyList<int> FeatsM
-#endif
         {
             get
             {
@@ -356,11 +350,7 @@ public sealed class FacemarkLBF : Facemark
         /// <summary>
         /// 
         /// </summary>
-#if NET40
-            public double[] RadiusM
-#else
         public IReadOnlyList<double> RadiusM
-#endif
         {
             get
             {
@@ -382,11 +372,7 @@ public sealed class FacemarkLBF : Facemark
         /// <summary>
         /// index of facemark points on pupils of left and right eye
         /// </summary>
-#if NET40
-            public int[] Pupils0
-#else
         public IReadOnlyList<int> Pupils0
-#endif
         {
             get
             {
@@ -408,11 +394,7 @@ public sealed class FacemarkLBF : Facemark
         /// <summary>
         /// index of facemark points on pupils of left and right eye
         /// </summary>
-#if NET40
-            public int[] Pupils1
-#else
         public IReadOnlyList<int> Pupils1
-#endif
         {
             get
             {
@@ -479,12 +461,8 @@ public sealed class FacemarkLBF : Facemark
         }
     }
 
-    internal class Ptr : OpenCvSharp.Ptr
+    internal class Ptr(IntPtr ptr) : OpenCvSharp.Ptr(ptr)
     {
-        public Ptr(IntPtr ptr) : base(ptr)
-        {
-        }
-
         public override IntPtr Get()
         {
             NativeMethods.HandleException(

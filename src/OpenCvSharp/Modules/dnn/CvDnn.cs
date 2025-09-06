@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.IO;
-using System.Linq;
+﻿using System.Diagnostics.CodeAnalysis;
 using OpenCvSharp.Internal;
 using OpenCvSharp.Internal.Vectors;
 
@@ -346,7 +342,7 @@ public static class CvDnn
         if (dst is null)
             throw new ArgumentNullException(nameof(dst));
 
-        var layersTypesArray = layersTypes as string[] ?? layersTypes?.ToArray() ?? Array.Empty<string>();
+        var layersTypesArray = layersTypes as string[] ?? layersTypes?.ToArray() ?? [];
         NativeMethods.HandleException(
             NativeMethods.dnn_shrinkCaffeModel(src, dst, layersTypesArray, layersTypesArray.Length));
     }

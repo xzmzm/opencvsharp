@@ -1,4 +1,3 @@
-using System;
 using OpenCvSharp.Internal;
 
 // ReSharper disable UnusedMember.Global
@@ -106,12 +105,8 @@ public class RadialVarianceHash : ImgHashBase
         base.Compute(inputArr, outputArr);
     }
 
-    internal class Ptr : OpenCvSharp.Ptr
+    internal class Ptr(IntPtr ptr) : OpenCvSharp.Ptr(ptr)
     {
-        public Ptr(IntPtr ptr) : base(ptr)
-        {
-        }
-
         public override IntPtr Get()
         {
             NativeMethods.HandleException(

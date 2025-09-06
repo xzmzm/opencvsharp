@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using OpenCvSharp.Internal.Util;
+﻿using OpenCvSharp.Internal.Util;
 
 namespace OpenCvSharp.Internal.Vectors;
 
@@ -61,7 +58,7 @@ public class VectorOfVectorDMatch : DisposableCvObject, IStdVector<DMatch[]>
     {
         var size1 = GetSize1();
         if (size1 == 0)
-            return Array.Empty<DMatch[]>();
+            return [];
         var size2 = GetSize2();
 
         var ret = new DMatch[size1][];

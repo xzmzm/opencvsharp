@@ -1,5 +1,4 @@
-﻿using System;
-using OpenCvSharp.Face;
+﻿using OpenCvSharp.Face;
 using Xunit;
 
 namespace OpenCvSharp.Tests.Face;
@@ -66,7 +65,7 @@ public class FacemarkLBFTest : TestBase
     [Fact]
     public void ParameterFeatsM()
     {
-        int[] value = {9, 8, 7, 6, 5};
+        int[] value = [9, 8, 7, 6, 5];
 
         using (var parameter = new FacemarkLBF.Params())
         {
@@ -114,7 +113,7 @@ public class FacemarkLBFTest : TestBase
     [Fact]
     public void ParameterPupils0()
     {
-        int[] value = { 9, 8, 7, 6, 5 };
+        int[] value = [9, 8, 7, 6, 5];
 
         using (var parameter = new FacemarkLBF.Params())
         {
@@ -126,7 +125,7 @@ public class FacemarkLBFTest : TestBase
     [Fact]
     public void ParameterPupils1()
     {
-        int[] value = { 9, 8, 7, 6, 5 };
+        int[] value = [9, 8, 7, 6, 5];
 
         using (var parameter = new FacemarkLBF.Params())
         {
@@ -138,7 +137,7 @@ public class FacemarkLBFTest : TestBase
     [Fact]
     public void ParameterRadiusM()
     {
-        double[] value = { 1, 2, 3 };
+        double[] value = [1, 2, 3];
 
         using (var parameter = new FacemarkLBF.Params())
         {

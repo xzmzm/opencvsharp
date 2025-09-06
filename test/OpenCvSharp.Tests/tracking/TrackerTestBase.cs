@@ -1,9 +1,4 @@
-﻿using System;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using OpenCvSharp.Tracking;
-using Xunit;
+﻿using System.Diagnostics;
 
 namespace OpenCvSharp.Tests.Tracking;
 
@@ -14,7 +9,7 @@ public abstract class TrackerTestBase : TestBase
         if (tracker is null) 
             throw new ArgumentNullException(nameof(tracker));
 
-        using var vc = Image("lenna.png");
+        using var vc = LoadImage("lenna.png");
         tracker.Init(vc, new Rect(220, 60, 200, 220));
     }
 

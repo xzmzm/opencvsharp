@@ -1,11 +1,7 @@
-$tag = "4.7.0.20230103-beta"
-$version = "470"
+$tag = "4.11.0.20250505"
 $uriArray = @(
-    "https://github.com/shimat/opencv_files/releases/download/${tag}/opencv${version}_win_x64.zip"
-    "https://github.com/shimat/opencv_files/releases/download/${tag}/opencv${version}_win_x86.zip" 
-    "https://github.com/shimat/opencv_files/releases/download/${tag}/opencv${version}_uwp_x64.zip" 
-    "https://github.com/shimat/opencv_files/releases/download/${tag}/opencv${version}_uwp_x86.zip"
-    "https://github.com/shimat/opencv_files/releases/download/${tag}/opencv${version}_uwp_ARM.zip"
+    "https://github.com/shimat/opencv_files/releases/download/${tag}/opencv_win_x64.zip"
+    "https://github.com/shimat/opencv_files/releases/download/${tag}/opencv_win_x86.zip"
 )
 
 function Download($uri, $outFile) {

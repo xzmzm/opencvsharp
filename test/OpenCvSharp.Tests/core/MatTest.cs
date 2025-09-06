@@ -1,5 +1,4 @@
-﻿using System;
-using Xunit;
+﻿using Xunit;
 using Xunit.Abstractions;
 
 // ReSharper disable ReturnValueOfPureMethodIsNotUsed
@@ -110,9 +109,9 @@ public class MatTest : TestBase
         Assert.Equal(new Vec3b(64, 128, 192), mat8UC3.Get<Vec3b>(2, 0));
 
         using var mat32FC1 = new Mat(3, 3, MatType.CV_32FC1, new Scalar(3.14159));
-        Assert.Equal(3.14159f, mat32FC1.Get<float>(0, 0), 6);
-        Assert.Equal(3.14159f, mat32FC1.Get<float>(1, 1), 6);
-        Assert.Equal(3.14159f, mat32FC1.Get<float>(2, 2), 6);
+        Assert.Equal(3.14159f, mat32FC1.Get<float>(0, 0), 1e-6);
+        Assert.Equal(3.14159f, mat32FC1.Get<float>(1, 1), 1e-6);
+        Assert.Equal(3.14159f, mat32FC1.Get<float>(2, 2), 1e-6);
         mat32FC1.Set<float>(0, 1, 55.5555f);
         mat32FC1.Set<float>(1, 2, 55.5555f);
         mat32FC1.Set<float>(2, 0, 55.5555f);
@@ -147,9 +146,9 @@ public class MatTest : TestBase
         Assert.Equal(new Vec3b(7, 8, 9), mat8UC3.At<Vec3b>(2, 0));
 
         using var mat32FC1 = new Mat(3, 3, MatType.CV_32FC1, new Scalar(3.14159));
-        Assert.Equal(3.14159f, mat32FC1.At<float>(0, 0), 6);
-        Assert.Equal(3.14159f, mat32FC1.At<float>(1, 1), 6);
-        Assert.Equal(3.14159f, mat32FC1.At<float>(2, 2), 6);
+        Assert.Equal(3.14159f, mat32FC1.At<float>(0, 0), 1e-6);
+        Assert.Equal(3.14159f, mat32FC1.At<float>(1, 1), 1e-6);
+        Assert.Equal(3.14159f, mat32FC1.At<float>(2, 2), 1e-6);
         mat32FC1.At<float>(0, 1) = 33.3333f;
         mat32FC1.At<float>(1, 2) = 44.4444f;
         mat32FC1.At<float>(2, 0) = 55.5555f;
@@ -162,7 +161,7 @@ public class MatTest : TestBase
     public void Diag()
     {
         var data = new byte[] { 1, 10, 100 };
-        using var mat = new Mat(3, 1, MatType.CV_8UC1, data);
+        using var mat = Mat.FromPixelData(3, 1, MatType.CV_8UC1, data);
         using var diag = Mat.Diag(mat);
         Assert.Equal(3, diag.Rows);
         Assert.Equal(3, diag.Cols);
@@ -182,7 +181,7 @@ public class MatTest : TestBase
     [Fact]
     public void CopyTo()
     {
-        using var src = Image("mandrill.png", ImreadModes.Grayscale);
+        using var src = LoadImage("mandrill.png", ImreadModes.Grayscale);
         using var dst = new Mat();
         using var mask = src.GreaterThan(128);
         src.CopyTo(dst, mask);
@@ -194,7 +193,7 @@ public class MatTest : TestBase
     [Fact]
     public void SetTo()
     {
-        using var graySrc = Image("mandrill.png", ImreadModes.Grayscale);
+        using var graySrc = LoadImage("mandrill.png", ImreadModes.Grayscale);
         using var resultImage = graySrc.Clone();
         using var mask = graySrc.InRange(100, 200);
         var ret = resultImage.SetTo(0, mask);
@@ -221,7 +220,7 @@ public class MatTest : TestBase
         using var subMat = mat.RowRange(1..);
         Assert.Equal(new Size(3, 2), subMat.Size());
         Assert.True(subMat.GetArray(out byte[] subMatArray));
-        Assert.Equal(new byte[] { 4, 5, 6, 7, 8, 9 }, subMatArray);
+        Assert.Equal([4, 5, 6, 7, 8, 9], subMatArray);
 
         // out of range 
         Assert.Throws<ArgumentOutOfRangeException>(() =>
@@ -248,7 +247,7 @@ public class MatTest : TestBase
         using var subMat = mat.ColRange(..2);
         Assert.Equal(new Size(2, 3), subMat.Size());
         Assert.True(subMat.GetArray(out byte[] subMatArray));
-        Assert.Equal(new byte[] { 1, 2, 4, 5, 7, 8 }, subMatArray);
+        Assert.Equal([1, 2, 4, 5, 7, 8], subMatArray);
 
         // out of range 
         Assert.Throws<ArgumentOutOfRangeException>(() =>
@@ -265,22 +264,22 @@ public class MatTest : TestBase
     public void SubMatRange()
     {
         var values = new byte[,] {
-            {1, 2, 3},
-            {4, 5, 6},
-            {7, 8, 9}};
+            {1, 2, 3, 4},
+            {5, 6, 7, 8},
+            {9, 10,11,12}};
         using var mat = Mat.FromArray(values);
-        Assert.Equal(new Size(3, 3), mat.Size());
+        Assert.Equal(new Size(4, 3), mat.Size());
 
         // OK
-        using var subMat1 = mat.SubMat(0..2, 1..3);
-        Assert.Equal(new Size(2, 2), subMat1.Size());
+        using var subMat1 = mat.SubMat(0..2, 1..4);
+        Assert.Equal(new Size(3, 2), subMat1.Size());
         Assert.True(subMat1.GetArray(out byte[] subMat1Array));
-        Assert.Equal(new byte[] { 2, 3, 5, 6 }, subMat1Array);
+        Assert.Equal([2, 3,4, 6,7,8], subMat1Array);
 
         using var subMat2 = mat[1..2, ..];
-        Assert.Equal(new Size(3, 1), subMat2.Size());
+        Assert.Equal(new Size(4, 1), subMat2.Size());
         Assert.True(subMat2.GetArray(out byte[] subMat2Array));
-        Assert.Equal(new byte[] { 4, 5, 6 }, subMat2Array);
+        Assert.Equal([5, 6,7,8], subMat2Array);
 
         // out of range 
         Assert.Throws<ArgumentOutOfRangeException>(() =>
@@ -306,7 +305,7 @@ public class MatTest : TestBase
     public void T()
     {
         var data = new byte[] { 1, 10, 100 };
-        using var mat = new Mat(3, 1, MatType.CV_8UC1, data);
+        using var mat = Mat.FromPixelData(3, 1, MatType.CV_8UC1, data);
         using var tExpr = mat.T();
         using var t = tExpr.ToMat();
 
@@ -323,7 +322,7 @@ public class MatTest : TestBase
     public void Inv()
     {
         var data = new double[] { 1, 2, 3, 4 };
-        using var mat = new Mat(2, 2, MatType.CV_64FC1, data);
+        using var mat = Mat.FromPixelData(2, 2, MatType.CV_64FC1, data);
         using var invExpr = mat.Inv();
         using var inv = invExpr.ToMat();
 
@@ -342,8 +341,8 @@ public class MatTest : TestBase
     {
         var data1 = new double[] { 1, 2 };
         var data2 = new double[] { 3, 4 };
-        using var mat1 = new Mat(2, 1, MatType.CV_64FC1, data1);
-        using var mat2 = new Mat(2, 1, MatType.CV_64FC1, data2);
+        using var mat1 = Mat.FromPixelData(2, 1, MatType.CV_64FC1, data1);
+        using var mat2 = Mat.FromPixelData(2, 1, MatType.CV_64FC1, data2);
         var dot = mat1.Dot(mat2);
 
         Assert.Equal(data1[0] * data2[0] + data1[1] * data2[1], dot);
@@ -477,8 +476,8 @@ public class MatTest : TestBase
         var indexer = m.GetIndexer();
         for (int i = 0; i < array.Length; i++)
         {
-            Assert.Equal(array[i], m.Get<float>(i), 6);
-            Assert.Equal(array[i], indexer[i], 6);
+            Assert.Equal(array[i], m.Get<float>(i), 1e-6);
+            Assert.Equal(array[i], indexer[i], 1e-6);
         }
     }
 
@@ -493,8 +492,8 @@ public class MatTest : TestBase
         {
             for (int j = 0; j < array.GetLength(1); j++)
             {
-                Assert.Equal(array[i, j], m.Get<float>(i, j), 6);
-                Assert.Equal(array[i, j], indexer[i, j], 6);
+                Assert.Equal(array[i, j], m.Get<float>(i, j), 1e-6);
+                Assert.Equal(array[i, j], indexer[i, j], 1e-6);
             }
         }
     }
@@ -516,7 +515,7 @@ public class MatTest : TestBase
     [Fact]
     public void MatOfIntFromRectangularArray()
     {
-        var array = new[,] { { 1, 2 }, { 3, 4 } };
+        var array = new[,] { { 1, 2 }, { 3, 4 },{ 5,6} };
         using var m = Mat.FromArray(array);
 
         var indexer = m.GetIndexer();
@@ -628,7 +627,7 @@ public class MatTest : TestBase
     {
         var data = new byte[] { 0, 128, 255, 1 };
 
-        using var mat = new Mat(2, 2, MatType.CV_8UC1, data);
+        using var mat = Mat.FromPixelData(2, 2, MatType.CV_8UC1, data);
         bool success = mat.GetArray(out byte[] data2);
 
         Assert.True(success);
@@ -640,7 +639,7 @@ public class MatTest : TestBase
     {
         var data = new byte[] { 0, 128, 255, 1 };
 
-        using var mat = new Mat(2, 2, MatType.CV_64FC4, data);
+        using var mat = Mat.FromPixelData(2, 2, MatType.CV_64FC4, data);
         Assert.Throws<OpenCvSharpException>(() =>
         {
             mat.GetArray(out byte[] _);
@@ -656,7 +655,7 @@ public class MatTest : TestBase
             {255, 1}
         };
 
-        using var mat = new Mat(2, 2, MatType.CV_8UC1, data);
+        using var mat = Mat.FromPixelData(2, 2, MatType.CV_8UC1, data);
         bool success = mat.GetRectangularArray(out byte[,] data2);
 
         Assert.True(success);
@@ -668,7 +667,7 @@ public class MatTest : TestBase
     {
         var data = new short[] { 3, short.MaxValue, short.MinValue, 10000 };
 
-        using var mat = new Mat(2, 2, MatType.CV_16SC1, data);
+        using var mat = Mat.FromPixelData(2, 2, MatType.CV_16SC1, data);
         bool success = mat.GetArray(out short[] data2);
 
         Assert.True(success);
@@ -681,7 +680,7 @@ public class MatTest : TestBase
         // ReSharper disable once RedundantExplicitArrayCreation
         var data = new int[] { 3, int.MaxValue, int.MinValue, 65536 };
 
-        using var mat = new Mat(2, 2, MatType.CV_32SC1, data);
+        using var mat = Mat.FromPixelData(2, 2, MatType.CV_32SC1, data);
         bool success = mat.GetArray(out int[] data2);
 
         Assert.True(success);
@@ -694,7 +693,7 @@ public class MatTest : TestBase
         // ReSharper disable once RedundantExplicitArrayCreation
         var data = new float[] { 3.14f, float.MaxValue, float.MinValue, 12345.6789f };
 
-        using var mat = new Mat(2, 2, MatType.CV_32FC1, data);
+        using var mat = Mat.FromPixelData(2, 2, MatType.CV_32FC1, data);
         bool success = mat.GetArray(out float[] data2);
 
         Assert.True(success);
@@ -707,7 +706,7 @@ public class MatTest : TestBase
         // ReSharper disable once RedundantExplicitArrayCreation
         var data = new double[] { 3.14, double.MaxValue, double.MinValue, double.Epsilon };
 
-        using var mat = new Mat(2, 2, MatType.CV_64FC1, data);
+        using var mat = Mat.FromPixelData(2, 2, MatType.CV_64FC1, data);
         bool success = mat.GetArray(out double[] data2);
 
         Assert.True(success);
@@ -725,7 +724,7 @@ public class MatTest : TestBase
             new Point(7, 8),
         };
 
-        using var mat = new Mat(2, 2, MatType.CV_32SC2, data);
+        using var mat = Mat.FromPixelData(2, 2, MatType.CV_32SC2, data);
         bool success = mat.GetArray(out Point[] data2);
 
         Assert.True(success);
@@ -743,7 +742,7 @@ public class MatTest : TestBase
             new Rect(13, 14, 15, 16),
         };
 
-        using var mat = new Mat(2, 2, MatType.CV_32SC4, data);
+        using var mat = Mat.FromPixelData(2, 2, MatType.CV_32SC4, data);
         bool success = mat.GetArray(out Rect[] data2);
 
         Assert.True(success);
@@ -805,7 +804,7 @@ public class MatTest : TestBase
             new Vec3b(10, 11, 12),
         };
 
-        using var mat = new Mat(2, 2, MatType.CV_8UC3, data);
+        using var mat = Mat.FromPixelData(2, 2, MatType.CV_8UC3, data);
         bool success = mat.GetArray(out Vec3b[] data2);
 
         Assert.True(success);
@@ -1005,12 +1004,12 @@ public class MatTest : TestBase
 
         using var mat = new Mat(10, 10, MatType.CV_8UC1, Scalar.All(0));
 
-        var rect = new Rect(2, 2, 5, 5);
+        var rect = new Rect(2, 2, 7, 5);
         mat.Rectangle(rect, new Scalar(expectedValue), -1);
 
         using var subMat = mat.SubMat(rect);
-        Assert.Equal(rect.Width, subMat.Rows);
-        Assert.Equal(rect.Height, subMat.Cols);
+        Assert.Equal(rect.Width, subMat.Cols);
+        Assert.Equal(rect.Height, subMat.Rows);
 
         for (int r = 0; r < subMat.Rows; r++)
         {
@@ -1028,12 +1027,12 @@ public class MatTest : TestBase
 
         using var mat = new Mat(10, 10, MatType.CV_8UC1, Scalar.All(0));
 
-        var rect = new Rect(2, 2, 5, 5);
+        var rect = new Rect(2, 2, 7, 5);
         mat.Rectangle(rect, new Scalar(expectedValue), -1);
 
         using var subMat = mat[rect];
-        Assert.Equal(rect.Width, subMat.Rows);
-        Assert.Equal(rect.Height, subMat.Cols);
+        Assert.Equal(rect.Width, subMat.Cols);
+        Assert.Equal(rect.Height, subMat.Rows);
 
         for (int r = 0; r < subMat.Rows; r++)
         {
@@ -1051,12 +1050,12 @@ public class MatTest : TestBase
 
         using var mat = new Mat(10, 10, MatType.CV_8UC1, Scalar.All(0));
 
-        var rect = new Rect(2, 2, 5, 5);
+        var rect = new Rect(2, 2, 7, 5);
         mat[rect].SetTo(expectedValue);
 
-        for (int r = rect.Left; r < rect.Right; r++)
+        for (int r = rect.Top; r < rect.Bottom; r++)
         {
-            for (int c = rect.Top; c < rect.Bottom; c++)
+            for (int c = rect.Left; c < rect.Right; c++)
             {
                 Assert.Equal(expectedValue, mat.Get<byte>(r, c));
             }
@@ -1085,7 +1084,7 @@ public class MatTest : TestBase
     [Fact]
     public void RowMatCopyTo()
     {
-        using var lenna = Image("lenna.png", ImreadModes.Grayscale);
+        using var lenna = LoadImage("lenna.png", ImreadModes.Grayscale);
         using var mat = new Mat(lenna.Rows, lenna.Cols, MatType.CV_8UC1, Scalar.All(0));
 
         using var lenna10 = lenna.Row(10);
@@ -1116,7 +1115,7 @@ public class MatTest : TestBase
             System.Runtime.InteropServices.GCHandle.Alloc(array,
                 System.Runtime.InteropServices.GCHandleType.Pinned);
         var ptr = handle.AddrOfPinnedObject();
-        using var mat1 = new Mat(8, 8, MatType.CV_32FC1, ptr);
+        using var mat1 = Mat.FromPixelData(8, 8, MatType.CV_32FC1, ptr);
         for (long i = 0; i < 1000000; i++)
         {
             using var mat2 = mat1.Idct();
@@ -1136,7 +1135,7 @@ public class MatTest : TestBase
         m.Randn(Scalar.RandomColor(), new Scalar(7));
 
         using var stream = new System.IO.MemoryStream();
-        stream.Write(new byte[] { 1, 2, 3, 4 }, 0, 4);
+        stream.Write([1, 2, 3, 4], 0, 4);
         m.WriteToStream(stream);
 
         stream.Position = 4;
@@ -1210,7 +1209,7 @@ public class MatTest : TestBase
     [Fact]
     public void CreateMultiDimensional()
     {
-        using var m = new Mat(new int[] { 10, 20, 30 }, MatType.CV_8UC1);
+        using var m = new Mat([10, 20, 30], MatType.CV_8UC1);
 
         Assert.False(m.Empty());
         Assert.Equal(3, m.Dims);
@@ -1228,7 +1227,7 @@ public class MatTest : TestBase
     [Fact]
     public void SubmatOfMultiDimensionalMat()
     {
-        using var m = new Mat(new int[] { 5, 6, 7 }, MatType.CV_8UC1);
+        using var m = new Mat([5, 6, 7], MatType.CV_8UC1);
         for (int i = 0; i < 5; i++)
         {
             for (int j = 0; j < 6; j++)

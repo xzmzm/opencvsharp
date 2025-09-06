@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using OpenCvSharp.Internal;
+﻿using OpenCvSharp.Internal;
 using OpenCvSharp.Internal.Vectors;
 
 namespace OpenCvSharp;
@@ -22,7 +20,7 @@ static partial class Cv2
             NativeMethods.imgcodecs_imread(fileName, (int) flags, out var ret));
         if (ret == IntPtr.Zero)
             throw new OpenCvSharpException("imread failed.");
-        return new Mat(ret);
+        return Mat.FromNativePointer(ret);
     }
 
     /// <summary>
@@ -57,8 +55,7 @@ static partial class Cv2
             throw new ArgumentNullException(nameof(fileName));
         if (img is null)
             throw new ArgumentNullException(nameof(img));
-        if (prms is null)
-            prms = Array.Empty<int>();
+        prms ??= [];
 
         NativeMethods.HandleException(
             NativeMethods.imgcodecs_imwrite(fileName, img.CvPtr, prms, prms.Length, out var ret));
@@ -102,7 +99,7 @@ static partial class Cv2
             throw new ArgumentNullException(nameof(fileName));
         if (img is null)
             throw new ArgumentNullException(nameof(img));
-        prms ??= Array.Empty<int>();
+        prms ??= [];
 
         using var imgVec = new VectorOfMat(img);
         NativeMethods.HandleException(
@@ -220,8 +217,7 @@ static partial class Cv2
             throw new ArgumentNullException(nameof(ext));
         if (img is null)
             throw new ArgumentNullException(nameof(img));
-        if (prms is null)
-            prms = Array.Empty<int>();
+        prms ??= [];
         img.ThrowIfDisposed();
 
         using var bufVec = new VectorOfByte();

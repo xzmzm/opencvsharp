@@ -1,5 +1,4 @@
-﻿using System;
-using OpenCvSharp.Features2D;
+﻿using OpenCvSharp.Features2D;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -26,7 +25,7 @@ public class SIFTTest : TestBase
     public void Detect()
     {
         KeyPoint[] keyPoints;
-        using (var gray = Image("lenna.png", 0))
+        using (var gray = LoadImage("lenna.png", 0))
         using (var alg = SIFT.Create(500))
             keyPoints = alg.Detect(gray);
 

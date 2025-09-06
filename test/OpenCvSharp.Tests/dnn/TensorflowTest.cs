@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text;
-using OpenCvSharp.Dnn;
+﻿using OpenCvSharp.Dnn;
 using Xunit;
 
 #pragma warning disable CA1707
@@ -15,7 +11,7 @@ public class TensorflowTest : TestBase
     // ReSharper disable once IdentifierTypo
     public void LoadMnistTrainingDataFromFile_NetRecognizesAnImageOfA9Correctly()
     {
-        using var imgOf9 = Image(Path.Combine("Dnn","MNIST_9.png"), ImreadModes.Grayscale);
+        using var imgOf9 = LoadImage(Path.Combine("Dnn","MNIST_9.png"), ImreadModes.Grayscale);
             
         var img9DataBlob = CvDnn.BlobFromImage(imgOf9, 1f / 255.0f);
         var modelPath = Path.Combine("_data", "model", "MNISTTest_tensorflow.pb");
@@ -37,7 +33,7 @@ public class TensorflowTest : TestBase
     // ReSharper disable once IdentifierTypo
     public void LoadMnistTrainingDataFromStream_NetRecognizesAnImageOfA5Correctly()
     {
-        using var imgOf5 = Image(Path.Combine("Dnn", "MNIST_5.png"), ImreadModes.Grayscale);
+        using var imgOf5 = LoadImage(Path.Combine("Dnn", "MNIST_5.png"), ImreadModes.Grayscale);
 
         var img5DataBlob = CvDnn.BlobFromImage(imgOf5, 1f / 255.0f);
         var modelPath = Path.Combine("_data", "model", "MNISTTest_tensorflow.pb");

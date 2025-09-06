@@ -1,5 +1,4 @@
-﻿using System;
-using OpenCvSharp.Text;
+﻿using OpenCvSharp.Text;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -30,7 +29,7 @@ public class OCRTesseractTest : TestBase
     [Fact]
     public void Run()
     {
-        using (var image = Image("alphabet.png"))
+        using (var image = LoadImage("alphabet.png"))
         using (var tesseract = OCRTesseract.Create(TessData, "eng"))
         {
             tesseract.Run(image,

@@ -1,5 +1,4 @@
-﻿using System;
-using OpenCvSharp.Internal;
+﻿using OpenCvSharp.Internal;
 
 // ReSharper disable UnusedMember.Global
 
@@ -153,12 +152,8 @@ public sealed class TonemapDurand : Tonemap
         }
     }
 
-    private class Ptr : OpenCvSharp.Ptr
+    private class Ptr(IntPtr ptr) : OpenCvSharp.Ptr(ptr)
     {
-        public Ptr(IntPtr ptr) : base(ptr)
-        {
-        }
-
         public override IntPtr Get()
         {
             NativeMethods.HandleException(

@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using OpenCvSharp.Internal.Util;
 
 namespace OpenCvSharp.Internal.Vectors;
@@ -86,7 +83,7 @@ public class VectorOfPoint3f : DisposableCvObject, IStdVector<Point3f>
         var size = Size;
         if (size == 0)
         {
-            return Array.Empty<Point3f>();
+            return [];
         }
         var dst = new Point3f[size];
         using (var dstPtr = new ArrayAddress1<Point3f>(dst))

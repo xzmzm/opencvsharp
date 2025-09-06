@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 
 namespace OpenCvSharp.Internal.Vectors;
 
@@ -84,7 +81,7 @@ public class VectorOfDouble : DisposableCvObject, IStdVector<double>
         var size = Size;
         if (size == 0)
         {
-            return Array.Empty<double>();
+            return [];
         }
         var dst = new double[size];
         Marshal.Copy(ElemPtr, dst, 0, dst.Length);

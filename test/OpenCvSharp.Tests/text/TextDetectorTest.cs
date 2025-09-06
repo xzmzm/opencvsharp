@@ -1,6 +1,4 @@
-﻿using System;
-using System.Diagnostics;
-using System.IO;
+﻿using System.Diagnostics;
 using System.Net.Http;
 using Xunit;
 
@@ -45,7 +43,7 @@ public class TextDetectorTest : TestBase
     public void Detect()
     {
         using var detector = TextDetectorCNN.Create(ModelArch, ModelWeights);
-        using var image = Image("imageTextR.png", ImreadModes.Color);
+        using var image = LoadImage("imageTextR.png", ImreadModes.Color);
         detector.Detect(image, out var boxes, out var confidences);
 
         Assert.NotEmpty(boxes);

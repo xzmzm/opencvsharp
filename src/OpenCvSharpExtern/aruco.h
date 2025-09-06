@@ -146,6 +146,23 @@ CVAPI(ExceptionStatus) aruco_getPredefinedDictionary(int name, cv::aruco::Dictio
 	END_WRAP
 }
 
+CVAPI(ExceptionStatus) aruco_readDictionary(const char* dictionaryFile, cv::aruco::Dictionary** returnValue)
+{
+	BEGIN_WRAP
+
+	auto readMode = cv::FileStorage::READ | cv::FileStorage::FORMAT_YAML;
+	cv::FileStorage storeage(dictionaryFile, readMode);
+	cv::FileNode rootNode = storeage.root();
+
+	cv::aruco::Dictionary dictionary;
+	auto result = dictionary.readDictionary(rootNode);
+
+	storeage.release();
+
+	*returnValue = new cv::aruco::Dictionary(dictionary);
+	
+	END_WRAP
+}
 
 CVAPI(ExceptionStatus) aruco_Dictionary_delete(cv::aruco::Dictionary* ptr)
 {
@@ -282,5 +299,76 @@ CVAPI(ExceptionStatus) aruco_drawDetectedDiamonds(
 	const cv::_InputArray idArray = (ids != nullptr) ? *ids : static_cast<cv::_InputArray>(cv::noArray());
 
 	cv::aruco::drawDetectedDiamonds(*image, cornerVec, idArray, cpp(borderColor));
+	END_WRAP
+}
+
+CVAPI(ExceptionStatus) aruco_detectCharucoBoard(
+	cv::_InputArray* image,
+	int squaresX,
+	int squaresY,
+	float squareLength,
+	float markerLength,
+	int arucoDictId,
+	std::vector<cv::Point2f>* charucoCorners,
+	std::vector<int>* charucoIds,
+	std::vector< std::vector<cv::Point2f> >* markerCorners,
+	std::vector<int>* markerIds
+	)
+{
+	BEGIN_WRAP
+	cv::aruco::Dictionary dictionary = cv::aruco::getPredefinedDictionary(arucoDictId);
+    cv::aruco::CharucoBoard charucoBoard(cv::Size(squaresX, squaresY), squareLength, markerLength, dictionary);
+	cv::aruco::CharucoDetector detector(charucoBoard);
+	cv::Mat charucoCorners_mat, charucoIds_mat;
+	//detector.detectBoard(*image, *charucoCorners, *charucoIds, *markerCorners, *markerIds);
+	detector.detectBoard(*image, charucoCorners_mat, charucoIds_mat, *markerCorners, *markerIds);
+	for (int i = 0; i < charucoCorners_mat.rows; ++i)
+	{
+		charucoCorners->push_back(charucoCorners_mat.at<cv::Point2f>(i, 0));
+		charucoIds->push_back(charucoIds_mat.at<int>(i, 0));
+	}
+	END_WRAP
+}
+
+CVAPI(ExceptionStatus) aruco_interpolateCornersCharuco(
+	cv::_InputArray* image,
+	int squaresX,
+	int squaresY,
+	float squareLength,
+	float markerLength,
+	int arucoDictId,
+	cv::Point2f** markerCorners,
+	int markerCornersSize1,
+	int* markerCornersSize2,
+	std::vector<int>* markerIds,
+	std::vector<cv::Point2f>* charucoCorners,
+	std::vector<int>* charucoIds
+	)
+{
+	BEGIN_WRAP
+	std::vector< std::vector<cv::Point2f> > markerCornerVec(markerCornersSize1);
+	for (int i = 0; i < markerCornersSize1; i++)
+		markerCornerVec[i] = std::vector<cv::Point2f>(markerCorners[i], markerCorners[i] + markerCornersSize2[i]);
+
+	cv::aruco::Dictionary dictionary = cv::aruco::getPredefinedDictionary(arucoDictId);
+	cv::Ptr<cv::aruco::CharucoBoard> ptr_charucoBoard = new cv::aruco::CharucoBoard(cv::Size(squaresX, squaresY), squareLength, markerLength, dictionary);
+	cv::Mat charucoCorners_mat, charucoIds_mat;
+	cv::aruco::interpolateCornersCharuco(markerCornerVec, *markerIds, *image, ptr_charucoBoard, charucoCorners_mat, charucoIds_mat);
+	for (int i = 0; i < charucoCorners_mat.rows; ++i)
+	{
+		charucoCorners->push_back(charucoCorners_mat.at<cv::Point2f>(i, 0));
+		charucoIds->push_back(charucoIds_mat.at<int>(i, 0));
+	}
+	END_WRAP
+}
+
+CVAPI(ExceptionStatus) aruco_drawDetectedCornersCharuco(
+	cv::_InputOutputArray* image,
+	std::vector<cv::Point2f>* corners,
+	std::vector<int>* ids,
+	MyCvScalar cornerColor)
+{
+	BEGIN_WRAP
+	cv::aruco::drawDetectedCornersCharuco(*image, *corners, *ids, cpp(cornerColor));
 	END_WRAP
 }

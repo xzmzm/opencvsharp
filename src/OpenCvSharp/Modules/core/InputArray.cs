@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using OpenCvSharp.Internal;
@@ -302,50 +300,35 @@ public class InputArray : DisposableCvObject
     /// </summary>
     /// <param name="mat"></param>
     /// <returns></returns>
-    public static InputArray Create(Mat mat)
-    {
-        return new(mat);
-    }
+    public static InputArray Create(Mat mat) => new(mat);
 
     /// <summary>
     /// Creates a proxy class of the specified Mat
     /// </summary>
     /// <param name="mat"></param>
     /// <returns></returns>
-    public static InputArray Create(UMat mat)
-    {
-        return new(mat);
-    }
+    public static InputArray Create(UMat mat) => new(mat);
 
     /// <summary>
     /// Creates a proxy class of the specified MatExpr
     /// </summary>
     /// <param name="expr"></param>
     /// <returns></returns>
-    public static InputArray Create(MatExpr expr)
-    {
-        return new(expr);
-    }
+    public static InputArray Create(MatExpr expr) => new(expr);
 
     /// <summary>
     /// Creates a proxy class of the specified Scalar
     /// </summary>
     /// <param name="val"></param>
     /// <returns></returns>
-    public static InputArray Create(Scalar val)
-    {
-        return new(val);
-    }
+    public static InputArray Create(Scalar val) => new(val);
 
     /// <summary>
     /// Creates a proxy class of the specified double
     /// </summary>
     /// <param name="val"></param>
     /// <returns></returns>
-    public static InputArray Create(double val)
-    {
-        return new(val);
-    }
+    public static InputArray Create(double val) => new(val);
 
 #if ENABLED_CUDA
         /// <summary>
@@ -364,10 +347,7 @@ public class InputArray : DisposableCvObject
     /// </summary>
     /// <param name="matVector"></param>
     /// <returns></returns>
-    public static InputArray Create(IEnumerable<Mat> matVector)
-    {
-        return new(matVector);
-    }
+    public static InputArray Create(IEnumerable<Mat> matVector) => new(matVector);
 
     /// <summary>
     /// Creates a proxy class of the specified list
@@ -425,7 +405,7 @@ public class InputArray : DisposableCvObject
             throw new ArgumentException("array.Length == 0");
 
         var rows = array.Length;
-        var mat = new Mat(rows, 1, type, array);
+        var mat = Mat.FromPixelData(rows, 1, type, array);
         return new InputArray(mat);
     }
 
@@ -458,7 +438,7 @@ public class InputArray : DisposableCvObject
             throw new ArgumentException("array.GetLength(0) == 0");
         if (cols == 0)
             throw new ArgumentException("array.GetLength(1) == 0");
-        var mat = new Mat(rows, cols, type, array);
+        var mat = Mat.FromPixelData(rows, cols, type, array);
         return new InputArray(mat);
     }
 
@@ -495,10 +475,10 @@ public class InputArray : DisposableCvObject
             Vec3f v => new InputArray(new[] { v.Item0, v.Item1, v.Item2 }),
             Vec4f v => new InputArray(new[] { v.Item0, v.Item1, v.Item2, v.Item3 }),
             Vec6f v => new InputArray(new[] { v.Item0, v.Item1, v.Item2, v.Item3, v.Item4, v.Item5 }),
-            Vec2d v => new InputArray(new[] { v.Item0, v.Item1}),
-            Vec3d v => new InputArray(new[] { v.Item0, v.Item1, v.Item2}),
-            Vec4d v => new InputArray(new[] { v.Item0, v.Item1, v.Item2, v.Item3}),
-            Vec6d v => new InputArray(new[] { v.Item0, v.Item1, v.Item2, v.Item3, v.Item4, v.Item5}),
+            Vec2d v => new InputArray([v.Item0, v.Item1]),
+            Vec3d v => new InputArray([v.Item0, v.Item1, v.Item2]),
+            Vec4d v => new InputArray([v.Item0, v.Item1, v.Item2, v.Item3]),
+            Vec6d v => new InputArray([v.Item0, v.Item1, v.Item2, v.Item3, v.Item4, v.Item5]),
 #pragma warning restore CA2000
             _ => throw new ArgumentException($"Not supported type: '{vec.GetType().Name}'", nameof(vec))
         };
@@ -511,11 +491,7 @@ public class InputArray : DisposableCvObject
     /// <returns></returns>
     private static MatType EstimateType(Type t)
     {
-#if NET40
-            if (!t.IsValueType)
-#else
         if (!t.GetTypeInfo().IsValueType)
-#endif
             throw new ArgumentException("Reference type is not supported.");
 
         // Primitive types
@@ -569,7 +545,7 @@ public class InputArray : DisposableCvObject
         if (t == typeof(Point3f))
             return MatType.CV_32FC3;
         if (t == typeof(Point3d))
-            return MatType.CV_32FC3;
+            return MatType.CV_64FC3;
         if (t == typeof(Range))
             return MatType.CV_32SC2;
         if (t == typeof(Rangef))
@@ -639,30 +615,15 @@ public class InputArray : DisposableCvObject
 #pragma warning disable 1591
 #pragma warning disable CA2225
 
-    public static implicit operator InputArray(Mat mat)
-    {
-        return Create(mat);
-    }
-        
-    public static implicit operator InputArray(UMat mat)
-    {
-        return Create(mat);
-    }
-        
-    public static implicit operator InputArray(MatExpr expr)
-    {
-        return Create(expr);
-    }
-        
-    public static implicit operator InputArray(Scalar val)
-    {
-        return Create(val);
-    }
-        
-    public static implicit operator InputArray(double val)
-    {
-        return Create(val);
-    }
+    public static implicit operator InputArray(Mat mat) => Create(mat);
+
+    public static implicit operator InputArray(UMat mat) => Create(mat);
+
+    public static implicit operator InputArray(MatExpr expr) => Create(expr);
+
+    public static implicit operator InputArray(Scalar val) => Create(val);
+
+    public static implicit operator InputArray(double val) => Create(val);
 
 #if ENABLED_CUDA
         public static implicit operator InputArray(GpuMat mat)
@@ -671,40 +632,34 @@ public class InputArray : DisposableCvObject
         }
 #endif
         
-    public static explicit operator InputArray(List<Mat> mats)
-    {
-        return Create(mats);
-    }
-        
-    public static explicit operator InputArray(Mat[] mats)
-    {
-        return Create(mats);
-    }
-        
-    public static implicit operator InputArray(Vec2b vec) { return Create(vec); }
-    public static implicit operator InputArray(Vec3b vec) { return Create(vec); }
-    public static implicit operator InputArray(Vec4b vec) { return Create(vec); }
-    public static implicit operator InputArray(Vec6b vec) { return Create(vec); }
-    public static implicit operator InputArray(Vec2s vec) { return Create(vec); }
-    public static implicit operator InputArray(Vec3s vec) { return Create(vec); }
-    public static implicit operator InputArray(Vec4s vec) { return Create(vec); }
-    public static implicit operator InputArray(Vec6s vec) { return Create(vec); }
-    public static implicit operator InputArray(Vec2w vec) { return Create(vec); }
-    public static implicit operator InputArray(Vec3w vec) { return Create(vec); }
-    public static implicit operator InputArray(Vec4w vec) { return Create(vec); }
-    public static implicit operator InputArray(Vec6w vec) { return Create(vec); }
-    public static implicit operator InputArray(Vec2i vec) { return Create(vec); }
-    public static implicit operator InputArray(Vec3i vec) { return Create(vec); }
-    public static implicit operator InputArray(Vec4i vec) { return Create(vec); }
-    public static implicit operator InputArray(Vec6i vec) { return Create(vec); }
-    public static implicit operator InputArray(Vec2f vec) { return Create(vec); }
-    public static implicit operator InputArray(Vec3f vec) { return Create(vec); }
-    public static implicit operator InputArray(Vec4f vec) { return Create(vec); }
-    public static implicit operator InputArray(Vec6f vec) { return Create(vec); }
-    public static implicit operator InputArray(Vec2d vec) { return Create(vec); }
-    public static implicit operator InputArray(Vec3d vec) { return Create(vec); }
-    public static implicit operator InputArray(Vec4d vec) { return Create(vec); }
-    public static implicit operator InputArray(Vec6d vec) { return Create(vec); }
+    public static explicit operator InputArray(List<Mat> mats) => Create(mats);
+
+    public static explicit operator InputArray(Mat[] mats) => Create(mats);
+
+    public static implicit operator InputArray(Vec2b vec) => Create(vec);
+    public static implicit operator InputArray(Vec3b vec) => Create(vec);
+    public static implicit operator InputArray(Vec4b vec) => Create(vec);
+    public static implicit operator InputArray(Vec6b vec) => Create(vec);
+    public static implicit operator InputArray(Vec2s vec) => Create(vec);
+    public static implicit operator InputArray(Vec3s vec) => Create(vec);
+    public static implicit operator InputArray(Vec4s vec) => Create(vec);
+    public static implicit operator InputArray(Vec6s vec) => Create(vec);
+    public static implicit operator InputArray(Vec2w vec) => Create(vec);
+    public static implicit operator InputArray(Vec3w vec) => Create(vec);
+    public static implicit operator InputArray(Vec4w vec) => Create(vec);
+    public static implicit operator InputArray(Vec6w vec) => Create(vec);
+    public static implicit operator InputArray(Vec2i vec) => Create(vec);
+    public static implicit operator InputArray(Vec3i vec) => Create(vec);
+    public static implicit operator InputArray(Vec4i vec) => Create(vec);
+    public static implicit operator InputArray(Vec6i vec) => Create(vec);
+    public static implicit operator InputArray(Vec2f vec) => Create(vec);
+    public static implicit operator InputArray(Vec3f vec) => Create(vec);
+    public static implicit operator InputArray(Vec4f vec) => Create(vec);
+    public static implicit operator InputArray(Vec6f vec) => Create(vec);
+    public static implicit operator InputArray(Vec2d vec) => Create(vec);
+    public static implicit operator InputArray(Vec3d vec) => Create(vec);
+    public static implicit operator InputArray(Vec4d vec) => Create(vec);
+    public static implicit operator InputArray(Vec6d vec) => Create(vec);
 #pragma warning restore CA2225
 #pragma warning restore 1591
 

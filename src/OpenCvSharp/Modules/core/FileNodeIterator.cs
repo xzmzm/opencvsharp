@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections;
 using OpenCvSharp.Internal;
 
 // ReSharper disable UnusedMember.Global
@@ -75,14 +73,11 @@ public class FileNodeIterator : DisposableCvObject, IEquatable<FileNodeIterator>
     }
 
     object IEnumerator.Current => Current;
-        
+
     /// <summary>
     /// IEnumerable&lt;T&gt;.Reset
     /// </summary>
-    public void Reset()
-    {
-        throw new NotImplementedException();
-    }
+    public void Reset() => throw new NotImplementedException();
 
     /// <summary>
     /// iterator++

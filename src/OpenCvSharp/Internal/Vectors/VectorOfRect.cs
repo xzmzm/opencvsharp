@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using OpenCvSharp.Internal.Util;
 
 namespace OpenCvSharp.Internal.Vectors;
@@ -85,7 +82,7 @@ public class VectorOfRect : DisposableCvObject, IStdVector<Rect>
         var size = Size;
         if (size == 0)
         {
-            return Array.Empty<Rect>();
+            return [];
         }
         var dst = new Rect[size];
         using (var dstPtr = new ArrayAddress1<Rect>(dst))

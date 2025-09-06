@@ -1,5 +1,4 @@
-﻿using System;
-using OpenCvSharp.Face;
+﻿using OpenCvSharp.Face;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -25,14 +24,14 @@ public class LBPHFaceRecognizerTest : TestBase
     [Fact]
     public void TrainAndPredict()
     {
-        using var image = Image("lenna.png");
+        using var image = LoadImage("lenna.png");
         using var grayImage = image.CvtColor(ColorConversionCodes.BGR2GRAY);
         using var model = LBPHFaceRecognizer.Create();
         using var cascade = new CascadeClassifier("_data/text/haarcascade_frontalface_default.xml");
 
         var rects = cascade.DetectMultiScale(image);
 
-        model.Train(new[] { grayImage }, new[] { 1 });
+        model.Train([grayImage], [1]);
 
         foreach (Rect rect in rects)
         {

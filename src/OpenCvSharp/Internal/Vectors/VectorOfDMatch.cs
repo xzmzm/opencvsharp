@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using OpenCvSharp.Internal.Util;
 
 namespace OpenCvSharp.Internal.Vectors;
@@ -85,7 +82,7 @@ public class VectorOfDMatch : DisposableCvObject, IStdVector<DMatch>
         var size = Size;
         if (size == 0)
         {
-            return Array.Empty<DMatch>();
+            return [];
         }
         var dst = new DMatch[size];
         using (var dstPtr = new ArrayAddress1<DMatch>(dst))

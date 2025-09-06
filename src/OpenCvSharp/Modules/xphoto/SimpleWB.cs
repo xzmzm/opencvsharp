@@ -1,4 +1,3 @@
-using System;
 using OpenCvSharp.Internal;
 
 // ReSharper disable InconsistentNaming
@@ -175,13 +174,8 @@ public class SimpleWB : WhiteBalancer
         dst.Fix();
     }
 
-    internal class Ptr : OpenCvSharp.Ptr
+    internal class Ptr(IntPtr ptr) : OpenCvSharp.Ptr(ptr)
     {
-        public Ptr(IntPtr ptr)
-            : base(ptr)
-        {
-        }
-
         public override IntPtr Get()
         {
             NativeMethods.HandleException(

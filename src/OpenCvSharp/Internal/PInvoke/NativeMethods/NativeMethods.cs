@@ -1,7 +1,4 @@
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Runtime.InteropServices;
 using OpenCvSharp.Internal.Util;
 
@@ -96,7 +93,7 @@ public static partial class NativeMethods
             return;
         }
 
-        var ap = (additionalPaths is null) ? Array.Empty<string>() : additionalPaths.ToArray();
+        var ap = (additionalPaths is null) ? [] : additionalPaths.ToArray();
 
         /*
         if (Environment.Is64BitProcess)

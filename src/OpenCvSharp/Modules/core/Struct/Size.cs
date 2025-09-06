@@ -1,5 +1,4 @@
-﻿using System;
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 
 namespace OpenCvSharp;
@@ -10,113 +9,39 @@ namespace OpenCvSharp;
 [Serializable]
 [StructLayout(LayoutKind.Sequential)]
 [SuppressMessage("Design", "CA1051: Do not declare visible instance fields")]
-public struct Size : IEquatable<Size>
+public record struct Size(int Width, int Height)
 {
     /// <summary>
     ///
     /// </summary>
-    public int Width;
+    public int Width = Width;
 
     /// <summary>
     ///
     /// </summary>
-    public int Height;
-
-    /// <summary>
-    /// Constructor
-    /// </summary>
-    /// <param name="width"></param>
-    /// <param name="height"></param>
-    public Size(int width, int height)
-    {
-        Width = width;
-        Height = height;
-    }
-
+    public int Height = Height;
+    
     /// <summary>
     /// Constructor
     /// </summary>
     /// <param name="width"></param>
     /// <param name="height"></param>
     public Size(double width, double height)
+        : this((int)width, (int)height)
     {
-        Width = (int)width;
-        Height = (int)height;
     }
-
-    /// <summary>
-    /// Zero size
+    
+#pragma warning disable CA2225
+    /// <summary> 
     /// </summary>
-    public static readonly Size Zero;
+    /// <param name="size"></param>
+    public static explicit operator Size(Size2d size) 
+        => new(size.Width, size.Height);
 
-    #region Operators
-
-    /// <summary>
-    /// Compares two CvPoint objects. The result specifies whether the members of each object are equal.
+    /// <summary> 
     /// </summary>
-    /// <param name="lhs">A Point to compare.</param>
-    /// <param name="rhs">A Point to compare.</param>
-    /// <returns>This operator returns true if the members of left and right are equal; otherwise, false.</returns>
-    public static bool operator ==(Size lhs, Size rhs)
-    {
-        return lhs.Equals(rhs);
-    }
-
-    /// <summary>
-    /// Compares two CvPoint objects. The result specifies whether the members of each object are unequal.
-    /// </summary>
-    /// <param name="lhs">A Point to compare.</param>
-    /// <param name="rhs">A Point to compare.</param>
-    /// <returns>This operator returns true if the members of left and right are unequal; otherwise, false.</returns>
-    public static bool operator !=(Size lhs, Size rhs)
-    {
-        return !lhs.Equals(rhs);
-    }
-
-    public static explicit operator Size(Size2d size)
-    {
-        return new(size.Width, size.Height);
-    }
-
-    public static explicit operator Size(Size2f size)
-    {
-        return new(size.Width, size.Height);
-    }
-
-    #endregion
-
-    #region Override
-
-    /// <inheritdoc />
-    public readonly bool Equals(Size other)
-    {
-        return Width == other.Width && Height == other.Height;
-    }
-
-    /// <inheritdoc />
-    public override readonly bool Equals(object? obj)
-    {
-        return obj is Size other && Equals(other);
-    }
-
-    /// <inheritdoc />
-    public override readonly int GetHashCode()
-    {
-#if DOTNET_FRAMEWORK || NETSTANDARD2_0
-        unchecked
-        {
-            return (Width * 397) ^ Height;
-        }
-#else
-            return HashCode.Combine(Width, Height);
-#endif
-    }
-
-    /// <inheritdoc />
-    public override readonly string ToString()
-    {
-        return $"(width:{Width} height:{Height})";
-    }
-    #endregion
-
+    /// <param name="size"></param>
+    public static explicit operator Size(Size2f size) 
+        => new(size.Width, size.Height);
+#pragma warning restore CA2225
 }

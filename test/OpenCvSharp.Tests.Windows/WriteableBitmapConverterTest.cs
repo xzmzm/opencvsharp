@@ -1,5 +1,4 @@
-﻿using System;
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using OpenCvSharp.WpfExtensions;
@@ -13,7 +12,7 @@ public class WriteableBitmapConverterTest
     public void ToWriteableBitmap()
     {
         var expected = new byte[] {1, 2, 3, 4, 5, 6};
-        using (var mat = new Mat(3, 2, MatType.CV_8UC1, expected))
+        using (var mat = Mat.FromPixelData(3, 2, MatType.CV_8UC1, expected))
         {
             var wb = mat.ToWriteableBitmap();
 
@@ -32,7 +31,7 @@ public class WriteableBitmapConverterTest
     public void ToWriteableBitmapSubmat()
     {
         var expected = new byte[] {1, 2, 3, 4, 5, 6};
-        using (var mat = new Mat(3, 2, MatType.CV_8UC1, expected))
+        using (var mat = Mat.FromPixelData(3, 2, MatType.CV_8UC1, expected))
         using (var submat = mat[0, 2, 0, 2])
         {
             var wb = submat.ToWriteableBitmap();

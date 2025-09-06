@@ -1,5 +1,4 @@
-﻿using System;
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 
 namespace OpenCvSharp;
 
@@ -33,8 +32,5 @@ public abstract class CvObject : ICvPtrHolder
     /// <summary>
     /// Native pointer of OpenCV structure
     /// </summary>
-    public IntPtr CvPtr
-    {
-        get { return ptr; }
-    }
+    public IntPtr CvPtr => ptr;
 }

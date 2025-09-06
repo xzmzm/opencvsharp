@@ -1,5 +1,4 @@
-﻿using System;
-using OpenCvSharp.Face;
+﻿using OpenCvSharp.Face;
 using Xunit;
 
 namespace OpenCvSharp.Tests.Face;
@@ -41,7 +40,7 @@ public class FacemarkAAMTest : TestBase
             parameter.Scales = new float[] {2, 4};
 
             using (var facemark = FacemarkAAM.Create(parameter))
-            using (var img = Image("lenna.png"))
+            using (var img = LoadImage("lenna.png"))
             {
                 bool ret = facemark.GetFaces(img, out var faces);
                 Assert.True(ret);
@@ -110,7 +109,7 @@ public class FacemarkAAMTest : TestBase
     [Fact]
     public void ParameterScales()
     {
-        float[] value = { 1, 2, 3 };
+        float[] value = [1, 2, 3];
 
         using (var parameter = new FacemarkAAM.Params())
         {

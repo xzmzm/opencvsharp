@@ -1,5 +1,4 @@
-﻿using System;
-using System.Text;
+﻿using System.Text;
 
 namespace OpenCvSharp.Internal.Vectors;
 
@@ -56,7 +55,7 @@ public class VectorOfString : DisposableCvObject, IStdVector<string?>
     {
         var size = Size;
         if (size == 0)
-            return Array.Empty<string>();
+            return [];
 
         var ret = new string[size];
         var cStringPointers = new IntPtr[size];

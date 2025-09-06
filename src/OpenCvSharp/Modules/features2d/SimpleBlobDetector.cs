@@ -1,5 +1,4 @@
-﻿using System;
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using OpenCvSharp.Internal;
 
@@ -209,8 +208,7 @@ public class SimpleBlobDetector : Feature2D
     /// <param name="parameters"></param>
     public static SimpleBlobDetector Create(Params? parameters = null)
     {
-        if (parameters is null)
-            parameters = new Params();
+        parameters ??= new Params();
         NativeMethods.HandleException(
             NativeMethods.features2d_SimpleBlobDetector_create(ref parameters.Data, out var ptr));
         return new SimpleBlobDetector(ptr);
@@ -226,12 +224,8 @@ public class SimpleBlobDetector : Feature2D
         base.DisposeManaged();
     }
 
-    internal class Ptr : OpenCvSharp.Ptr
+    internal class Ptr(IntPtr ptr) : OpenCvSharp.Ptr(ptr)
     {
-        public Ptr(IntPtr ptr) : base(ptr)
-        {
-        }
-
         public override IntPtr Get()
         {
             NativeMethods.HandleException(

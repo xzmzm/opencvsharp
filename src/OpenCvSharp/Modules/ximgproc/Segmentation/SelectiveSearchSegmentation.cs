@@ -1,5 +1,4 @@
-﻿using System;
-using OpenCvSharp.Internal;
+﻿using OpenCvSharp.Internal;
 using OpenCvSharp.Internal.Vectors;
 
 // ReSharper disable UnusedMember.Global
@@ -133,7 +132,7 @@ public class SelectiveSearchSegmentation : Algorithm
     }
 
     /// <summary>
-    /// Add a new graph segmentation in the list of graph segementations to process.
+    /// Add a new graph segmentation in the list of graph segmentations to process.
     /// </summary>
     /// <param name="g">The graph segmentation</param>
     public virtual void AddGraphSegmentation(GraphSegmentation g)
@@ -144,7 +143,7 @@ public class SelectiveSearchSegmentation : Algorithm
         g.ThrowIfDisposed();
 
         if (g.PtrObj is null)
-            throw new ArgumentException("g.PtrObj = null");
+            throw new ArgumentException("PtrObj = null", nameof(g));
 
         NativeMethods.HandleException(
             NativeMethods.ximgproc_segmentation_SelectiveSearchSegmentation_addGraphSegmentation(ptr, g.PtrObj.CvPtr));
@@ -211,12 +210,8 @@ public class SelectiveSearchSegmentation : Algorithm
         GC.KeepAlive(this);
     }
 
-    internal class Ptr : OpenCvSharp.Ptr
+    internal class Ptr(IntPtr ptr) : OpenCvSharp.Ptr(ptr)
     {
-        public Ptr(IntPtr ptr) : base(ptr)
-        {
-        }
-
         public override IntPtr Get()
         {
             NativeMethods.HandleException(

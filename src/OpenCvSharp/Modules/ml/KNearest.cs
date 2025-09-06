@@ -1,5 +1,4 @@
-﻿using System;
-using OpenCvSharp.Internal;
+﻿using OpenCvSharp.Internal;
 
 #pragma warning disable CA1008 // Enums should have zero value
 
@@ -218,12 +217,8 @@ public class KNearest : StatModel
 
     #endregion
 
-    internal class Ptr : OpenCvSharp.Ptr
+    internal class Ptr(IntPtr ptr) : OpenCvSharp.Ptr(ptr)
     {
-        public Ptr(IntPtr ptr) : base(ptr)
-        {
-        }
-
         public override IntPtr Get()
         {
             NativeMethods.HandleException(

@@ -1,8 +1,4 @@
-﻿#nullable enable
-using System;
-using System.IO;
-using System.Linq;
-using Xunit;
+﻿using Xunit;
 using Xunit.Abstractions;
 
 namespace OpenCvSharp.Tests.Core;
@@ -64,7 +60,7 @@ public class FileStorageTest : TestBase
 
             using (Mat r = Mat.Eye(3, 3, MatType.CV_64FC1))
             using (Mat t = Mat.Ones(3, 1, MatType.CV_64FC1))
-            using (Mat lenna = Image("lenna.png"))
+            using (Mat lenna = LoadImage("lenna.png"))
             {
                 fs.Write("R", r);
                 fs.Write("T", t);
@@ -166,7 +162,7 @@ public class FileStorageTest : TestBase
             }
 
             using (var storedLenna = fs["lenna"]?.ReadMat())
-            using (var lenna = Image("lenna.png"))
+            using (var lenna = LoadImage("lenna.png"))
             {
                 Assert.NotNull(storedLenna);
 #pragma warning disable CS8604
@@ -226,7 +222,7 @@ public class FileStorageTest : TestBase
 
             using (Mat r = Mat.Eye(3, 3, MatType.CV_64FC1))
             using (Mat t = Mat.Ones(3, 1, MatType.CV_64FC1))
-            using (Mat lenna = Image("lenna.png"))
+            using (Mat lenna = LoadImage("lenna.png"))
             {
                 fs.Write("R", r);
                 fs.Write("T", t);
@@ -334,7 +330,7 @@ public class FileStorageTest : TestBase
             }
 
             using (var storedLenna = fs["lenna"]?.ReadMat())
-            using (var lenna = Image("lenna.png"))
+            using (var lenna = LoadImage("lenna.png"))
             {
                 Assert.NotNull(storedLenna);
                 ImageEquals(storedLenna, lenna);

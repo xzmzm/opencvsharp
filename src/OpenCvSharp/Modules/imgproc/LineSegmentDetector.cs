@@ -1,5 +1,4 @@
-﻿using System;
-using OpenCvSharp.Internal;
+﻿using OpenCvSharp.Internal;
 using OpenCvSharp.Internal.Vectors;
 
 namespace OpenCvSharp;
@@ -12,7 +11,7 @@ public class LineSegmentDetector : Algorithm
     /// <summary>
     /// cv::Ptr&lt;LineSegmentDetector&gt;
     /// </summary>
-    private Ptr ptrObj;
+    private readonly Ptr ptrObj;
 
     /// <summary>
     /// 
@@ -181,12 +180,8 @@ public class LineSegmentDetector : Algorithm
 
         return ret;
     }
-    internal class Ptr : OpenCvSharp.Ptr
+    internal class Ptr(IntPtr ptr) : OpenCvSharp.Ptr(ptr)
     {
-        public Ptr(IntPtr ptr) : base(ptr)
-        {
-        }
-
         public override IntPtr Get()
         {
             var res = NativeMethods.imgproc_Ptr_LineSegmentDetector_get(ptr);

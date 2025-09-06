@@ -1,5 +1,4 @@
-﻿using System;
-using Xunit;
+﻿using Xunit;
 
 namespace OpenCvSharp.Tests;
 
@@ -36,7 +35,7 @@ public class ExceptionTest : TestBase
         for (int i = 0; i < TrialCount; i++)
         {
             var data = new byte[] {1, 10, 100};
-            using var mat = new Mat(3, 1, MatType.CV_8UC1, data);
+            using var mat = Mat.FromPixelData(3, 1, MatType.CV_8UC1, data);
             var ex = Assert.Throws<OpenCVException>(() =>
             {
                 using var expr = mat.Inv();

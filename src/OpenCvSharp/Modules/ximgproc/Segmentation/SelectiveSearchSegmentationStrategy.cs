@@ -1,5 +1,4 @@
-﻿using System;
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 using OpenCvSharp.Internal;
 
 namespace OpenCvSharp.XImgProc.Segmentation;
@@ -121,12 +120,8 @@ public class SelectiveSearchSegmentationStrategyColor : SelectiveSearchSegmentat
         return new SelectiveSearchSegmentationStrategyColor(p);
     }
 
-    internal class Ptr : OpenCvSharp.Ptr
+    internal class Ptr(IntPtr ptr) : OpenCvSharp.Ptr(ptr)
     {
-        public Ptr(IntPtr ptr) : base(ptr)
-        {
-        }
-
         public override IntPtr Get()
         {
             NativeMethods.HandleException(
@@ -171,12 +166,8 @@ public class SelectiveSearchSegmentationStrategySize : SelectiveSearchSegmentati
         return new SelectiveSearchSegmentationStrategySize(p);
     }
 
-    internal class Ptr : OpenCvSharp.Ptr
+    internal class Ptr(IntPtr ptr) : OpenCvSharp.Ptr(ptr)
     {
-        public Ptr(IntPtr ptr) : base(ptr)
-        {
-        }
-
         public override IntPtr Get()
         {
             NativeMethods.HandleException(
@@ -219,12 +210,8 @@ public class SelectiveSearchSegmentationStrategyTexture : SelectiveSearchSegment
         return new SelectiveSearchSegmentationStrategyTexture(p);
     }
 
-    internal class Ptr : OpenCvSharp.Ptr
+    internal class Ptr(IntPtr ptr) : OpenCvSharp.Ptr(ptr)
     {
-        public Ptr(IntPtr ptr) : base(ptr)
-        {
-        }
-
         public override IntPtr Get()
         {
             NativeMethods.HandleException(
@@ -267,12 +254,8 @@ public class SelectiveSearchSegmentationStrategyFill : SelectiveSearchSegmentati
         return new SelectiveSearchSegmentationStrategyFill(p);
     }
 
-    internal class Ptr : OpenCvSharp.Ptr
+    internal class Ptr(IntPtr ptr) : OpenCvSharp.Ptr(ptr)
     {
-        public Ptr(IntPtr ptr) : base(ptr)
-        {
-        }
-
         public override IntPtr Get()
         {
             NativeMethods.HandleException(

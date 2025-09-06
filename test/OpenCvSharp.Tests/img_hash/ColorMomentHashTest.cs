@@ -1,5 +1,4 @@
-﻿using System;
-using OpenCvSharp.ImgHash;
+﻿using OpenCvSharp.ImgHash;
 using Xunit;
 
 namespace OpenCvSharp.Tests.ImgHash;
@@ -19,7 +18,7 @@ public class ColorMomentHashTest : TestBase
     public void Compute()
     {
         using (var model = ColorMomentHash.Create())
-        using (var img = Image("lenna.png"))
+        using (var img = LoadImage("lenna.png"))
         using (var hash = new Mat<double>())
         {
             model.Compute(img, hash);
@@ -29,8 +28,7 @@ public class ColorMomentHashTest : TestBase
 
             var hashArray = hash.ToArray();
             Assert.Equal(
-                new []
-                {
+                [
                     0.00168799895166844, 9.73548985026306E-09, 7.12008515499876E-12, 1.58206172228354E-10,
                     5.28813826840171E-21, 1.29337857065483E-14, 4.79075399951684E-22, 0.00128609224067447,
                     9.52599959124291E-10, 3.93698021400622E-12, 7.14400696815386E-12, 3.78255159833954E-23,
@@ -42,7 +40,7 @@ public class ColorMomentHashTest : TestBase
                     -2.7254690880086E-26, 1.04487497633728E-18, -3.47059704207128E-27, 0.00139981947147226,
                     2.27201044977745E-09, 4.41887540236722E-13, 7.28673251542401E-13, -4.09431968883588E-25,
                     3.10909057900972E-17, -5.77204894690052E-26
-                },
+                ],
                 hashArray, new DoubleEqualityComparer(1E-12));
         }
     }
@@ -51,7 +49,7 @@ public class ColorMomentHashTest : TestBase
     public void CompareSameImage()
     {
         using (var model = ColorMomentHash.Create())
-        using (var img1 = Image("lenna.png", ImreadModes.Grayscale))
+        using (var img1 = LoadImage("lenna.png", ImreadModes.Grayscale))
         {
             double hash = model.Compare(img1, img1);
             Assert.Equal(0, hash, 6);
@@ -62,8 +60,8 @@ public class ColorMomentHashTest : TestBase
     public void CompareDifferentImage()
     {
         using (var model = ColorMomentHash.Create())
-        using (var img1 = Image("lenna.png", ImreadModes.Grayscale))
-        using (var img2 = Image("building.jpg", ImreadModes.Grayscale))
+        using (var img1 = LoadImage("lenna.png", ImreadModes.Grayscale))
+        using (var img2 = LoadImage("building.jpg", ImreadModes.Grayscale))
         {
             var size = new Size(256, 256);
             using (var scaledImg1 = img1.Resize(size))

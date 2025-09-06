@@ -1,9 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Contracts;
-using System.IO;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using OpenCvSharp.Internal;
@@ -84,12 +80,19 @@ public partial class Mat : DisposableCvObject
     /// Creates from native cv::Mat* pointer
     /// </summary>
     /// <param name="ptr"></param>
-    public Mat(IntPtr ptr)
+    internal Mat(IntPtr ptr)
     {
         if (ptr == IntPtr.Zero)
             throw new OpenCvSharpException("Native object address is NULL");
         this.ptr = ptr;
     }
+
+    /// <summary>
+    /// Creates from native cv::Mat* pointer
+    /// </summary>
+    /// <param name="ptr"></param>
+    public static Mat FromNativePointer(IntPtr ptr) 
+        => new (ptr);
 
     /// <summary>
     /// Creates empty Mat
@@ -112,6 +115,7 @@ public partial class Mat : DisposableCvObject
 
         NativeMethods.HandleException(
             NativeMethods.core_Mat_new12(m.ptr, out ptr));
+        pinLifetime = m.pinLifetime?.Ref();
         if (ptr == IntPtr.Zero)
             throw new OpenCvSharpException("imread failed.");
     }
@@ -267,6 +271,7 @@ public partial class Mat : DisposableCvObject
     /// The external data is not automatically de-allocated, so you should take care of it.</param>
     /// <param name="step">Number of bytes each matrix row occupies. The value should include the padding bytes at the end of each row, if any.
     /// If the parameter is missing (set to AUTO_STEP ), no padding is assumed and the actual step is calculated as cols*elemSize() .</param>
+    [Obsolete("Use Mat.FromPixelData instead. This constructor has been deprecated because the introduction of 'nint' made overload resolution confusing.", true)]
     public Mat(int rows, int cols, MatType type, IntPtr data, long step = 0)
     {
         NativeMethods.HandleException(
@@ -286,13 +291,49 @@ public partial class Mat : DisposableCvObject
     /// The external data is not automatically de-allocated, so you should take care of it.</param>
     /// <param name="step">Number of bytes each matrix row occupies. The value should include the padding bytes at the end of each row, if any.
     /// If the parameter is missing (set to AUTO_STEP ), no padding is assumed and the actual step is calculated as cols*elemSize() .</param>
-    public Mat(int rows, int cols, MatType type, Array data, long step = 0)
+    public static Mat FromPixelData(int rows, int cols, MatType type, IntPtr data, long step = 0)
     {
-        var handle = AllocGCHandle(data);
+        NativeMethods.HandleException(
+            NativeMethods.core_Mat_new8(rows, cols, type, data, new IntPtr(step), out var ptr));
+        return new Mat(ptr);
+    }
+
+    /// <summary>
+    /// constructor for matrix headers pointing to user-allocated data
+    /// </summary>
+    /// <param name="rows">Number of rows in a 2D array.</param>
+    /// <param name="cols">Number of columns in a 2D array.</param>
+    /// <param name="type">Array type. Use MatType.CV_8UC1, ..., CV_64FC4 to create 1-4 channel matrices, 
+    /// or MatType. CV_8UC(n), ..., CV_64FC(n) to create multi-channel matrices.</param>
+    /// <param name="data">Pointer to the user data. Matrix constructors that take data and step parameters do not allocate matrix data. 
+    /// Instead, they just initialize the matrix header that points to the specified data, which means that no data is copied. 
+    /// This operation is very efficient and can be used to process external data using OpenCV functions. 
+    /// The external data is not automatically de-allocated, so you should take care of it.</param>
+    /// <param name="step">Number of bytes each matrix row occupies. The value should include the padding bytes at the end of each row, if any.
+    /// If the parameter is missing (set to AUTO_STEP ), no padding is assumed and the actual step is calculated as cols*elemSize() .</param>
+    protected Mat(int rows, int cols, MatType type, Array data, long step = 0)
+    {
+        pinLifetime = new ArrayPinningLifetime(data);
         NativeMethods.HandleException(
             NativeMethods.core_Mat_new8(rows, cols, type,
-                handle.AddrOfPinnedObject(), new IntPtr(step), out ptr));
+                pinLifetime.DataPtr, new IntPtr(step), out ptr));
     }
+
+    /// <summary>
+    /// constructor for matrix headers pointing to user-allocated data
+    /// </summary>
+    /// <param name="rows">Number of rows in a 2D array.</param>
+    /// <param name="cols">Number of columns in a 2D array.</param>
+    /// <param name="type">Array type. Use MatType.CV_8UC1, ..., CV_64FC4 to create 1-4 channel matrices, 
+    /// or MatType. CV_8UC(n), ..., CV_64FC(n) to create multi-channel matrices.</param>
+    /// <param name="data">Pointer to the user data. Matrix constructors that take data and step parameters do not allocate matrix data. 
+    /// Instead, they just initialize the matrix header that points to the specified data, which means that no data is copied. 
+    /// This operation is very efficient and can be used to process external data using OpenCV functions. 
+    /// The external data is not automatically de-allocated, so you should take care of it.</param>
+    /// <param name="step">Number of bytes each matrix row occupies. The value should include the padding bytes at the end of each row, if any.
+    /// If the parameter is missing (set to AUTO_STEP ), no padding is assumed and the actual step is calculated as cols*elemSize() .</param>
+    public static Mat FromPixelData(int rows, int cols, MatType type, Array data, long step = 0) 
+        => new (rows, cols, type, data, step);
 
     /// <summary>
     /// constructor for matrix headers pointing to user-allocated data
@@ -306,7 +347,7 @@ public partial class Mat : DisposableCvObject
     /// The external data is not automatically de-allocated, so you should take care of it.</param>
     /// <param name="steps">Array of ndims-1 steps in case of a multi-dimensional array (the last step is always set to the element size). 
     /// If not specified, the matrix is assumed to be continuous.</param>
-    public Mat(IEnumerable<int> sizes, MatType type, IntPtr data, IEnumerable<long>? steps = null)
+    public static Mat FromPixelData(IEnumerable<int> sizes, MatType type, IntPtr data, IEnumerable<long>? steps = null)
     {
         if (sizes is null)
             throw new ArgumentNullException(nameof(sizes));
@@ -315,6 +356,8 @@ public partial class Mat : DisposableCvObject
 #pragma warning disable CA1508
         var sizesArray = sizes as int[] ?? sizes.ToArray();
 #pragma warning restore CA1508
+
+        IntPtr ptr;
         if (steps is null)
         {
             NativeMethods.HandleException(
@@ -326,6 +369,7 @@ public partial class Mat : DisposableCvObject
             NativeMethods.HandleException(
                 NativeMethods.core_Mat_new9(sizesArray.Length, sizesArray, type, data, stepsArray, out ptr));
         }
+        return new Mat(ptr);
     }
 
     /// <summary>
@@ -340,14 +384,14 @@ public partial class Mat : DisposableCvObject
     /// The external data is not automatically de-allocated, so you should take care of it.</param>
     /// <param name="steps">Array of ndims-1 steps in case of a multi-dimensional array (the last step is always set to the element size). 
     /// If not specified, the matrix is assumed to be continuous.</param>
-    public Mat(IEnumerable<int> sizes, MatType type, Array data, IEnumerable<long>? steps = null)
+    protected Mat(IEnumerable<int> sizes, MatType type, Array data, IEnumerable<long>? steps = null)
     {
         if (sizes is null)
             throw new ArgumentNullException(nameof(sizes));
         if (data is null)
             throw new ArgumentNullException(nameof(data));
 
-        var handle = AllocGCHandle(data);
+        pinLifetime = new ArrayPinningLifetime(data);
 #pragma warning disable CA1508
         var sizesArray = sizes as int[] ?? sizes.ToArray();
 #pragma warning restore CA1508
@@ -355,16 +399,31 @@ public partial class Mat : DisposableCvObject
         {
             NativeMethods.HandleException(
                 NativeMethods.core_Mat_new9(sizesArray.Length, sizesArray,
-                    type, handle.AddrOfPinnedObject(), IntPtr.Zero, out ptr));
+                    type, pinLifetime.DataPtr, IntPtr.Zero, out ptr));
         }
         else
         {
             var stepsArray = steps.Select(s => new IntPtr(s)).ToArray();
             NativeMethods.HandleException(
                 NativeMethods.core_Mat_new9(sizesArray.Length, sizesArray,
-                    type, handle.AddrOfPinnedObject(), stepsArray, out ptr));
+                    type, pinLifetime.DataPtr, stepsArray, out ptr));
         }
     }
+
+    /// <summary>
+    /// constructor for matrix headers pointing to user-allocated data
+    /// </summary>
+    /// <param name="sizes">Array of integers specifying an n-dimensional array shape.</param>
+    /// <param name="type">Array type. Use MatType.CV_8UC1, ..., CV_64FC4 to create 1-4 channel matrices, 
+    /// or MatType. CV_8UC(n), ..., CV_64FC(n) to create multi-channel matrices.</param>
+    /// <param name="data">Pointer to the user data. Matrix constructors that take data and step parameters do not allocate matrix data. 
+    /// Instead, they just initialize the matrix header that points to the specified data, which means that no data is copied. 
+    /// This operation is very efficient and can be used to process external data using OpenCV functions. 
+    /// The external data is not automatically de-allocated, so you should take care of it.</param>
+    /// <param name="steps">Array of ndims-1 steps in case of a multi-dimensional array (the last step is always set to the element size). 
+    /// If not specified, the matrix is assumed to be continuous.</param>
+    public static Mat FromPixelData(IEnumerable<int> sizes, MatType type, Array data, IEnumerable<long>? steps = null) 
+        => new (sizes, type, data, steps);
 
     /// <summary>
     /// constructs n-dimensional matrix
@@ -406,10 +465,7 @@ public partial class Mat : DisposableCvObject
     /// <summary>
     /// Releases the resources
     /// </summary>
-    public void Release()
-    {
-        Dispose();
-    }
+    public void Release() => Dispose();
 
     /// <inheritdoc />
     /// <summary>
@@ -463,10 +519,8 @@ public partial class Mat : DisposableCvObject
     /// <param name="span">The input slice of bytes.</param>
     /// <param name="mode">The same flags as in imread</param>
     /// <returns></returns>
-    public static Mat ImDecode(ReadOnlySpan<byte> span, ImreadModes mode = ImreadModes.Color)
-    {
-        return Cv2.ImDecode(span, mode);
-    }
+    public static Mat ImDecode(ReadOnlySpan<byte> span, ImreadModes mode = ImreadModes.Color) 
+        => Cv2.ImDecode(span, mode);
 
     /// <summary>
     /// Creates the Mat instance from image data (using cv::decode) 
@@ -474,10 +528,8 @@ public partial class Mat : DisposableCvObject
     /// <param name="imageBytes"></param>
     /// <param name="mode"></param>
     /// <returns></returns>
-    public static Mat FromImageData(byte[] imageBytes, ImreadModes mode = ImreadModes.Color)
-    {
-        return ImDecode(imageBytes, mode);
-    }
+    public static Mat FromImageData(byte[] imageBytes, ImreadModes mode = ImreadModes.Color) 
+        => ImDecode(imageBytes, mode);
 
     /// <summary>
     /// Reads image from the specified buffer in memory.
@@ -485,10 +537,8 @@ public partial class Mat : DisposableCvObject
     /// <param name="span">The input slice of bytes.</param>
     /// <param name="mode">The same flags as in imread</param>
     /// <returns></returns>
-    public static Mat FromImageData(ReadOnlySpan<byte> span, ImreadModes mode = ImreadModes.Color)
-    {
-        return Cv2.ImDecode(span, mode);
-    }
+    public static Mat FromImageData(ReadOnlySpan<byte> span, ImreadModes mode = ImreadModes.Color) 
+        => Cv2.ImDecode(span, mode);
 
     #endregion
 
@@ -534,10 +584,8 @@ public partial class Mat : DisposableCvObject
     /// <param name="size">Alternative to the matrix size specification Size(cols, rows) .</param>
     /// <param name="type">Created matrix type.</param>
     /// <returns></returns>
-    public static MatExpr Zeros(Size size, MatType type)
-    {
-        return Zeros(size.Height, size.Width, type);
-    }
+    public static MatExpr Zeros(Size size, MatType type) 
+        => Zeros(size.Height, size.Width, type);
 
     /// <summary>
     /// Returns a zero array of the specified size and type.
@@ -577,10 +625,8 @@ public partial class Mat : DisposableCvObject
     /// <param name="size">Alternative to the matrix size specification Size(cols, rows) .</param>
     /// <param name="type">Created matrix type.</param>
     /// <returns></returns>
-    public static MatExpr Ones(Size size, MatType type)
-    {
-        return Ones(size.Height, size.Width, type);
-    }
+    public static MatExpr Ones(Size size, MatType type) 
+        => Ones(size.Height, size.Width, type);
 
     /// <summary>
     /// Returns an array of all 1’s of the specified size and type.
@@ -605,10 +651,8 @@ public partial class Mat : DisposableCvObject
     /// <param name="size">Alternative to the matrix size specification Size(cols, rows) .</param>
     /// <param name="type">Created matrix type.</param>
     /// <returns></returns>
-    public static MatExpr Eye(Size size, MatType type)
-    {
-        return Eye(size.Height, size.Width, type);
-    }
+    public static MatExpr Eye(Size size, MatType type) 
+        => Eye(size.Height, size.Width, type);
 
     /// <summary>
     /// Returns an identity matrix of the specified size and type.
@@ -671,10 +715,8 @@ public partial class Mat : DisposableCvObject
     /// </summary>
     /// <param name="enumerable">Source array data to be copied to this</param>
     public static Mat<TElem> FromArray<TElem>(IEnumerable<TElem> enumerable)
-        where TElem : unmanaged
-    {
-        return FromArray(enumerable.ToArray());
-    }
+        where TElem : unmanaged =>
+        FromArray(enumerable.ToArray());
 
     #endregion
 
@@ -1253,7 +1295,7 @@ public partial class Mat : DisposableCvObject
     /// <param name="colRange">Start and end column of the extracted submatrix. 
     /// The upper boundary is not included. To select all the columns, use Range.All().</param>
     /// <returns></returns>
-    public Mat this[OpenCvSharp.Range rowRange, OpenCvSharp.Range colRange]
+    public Mat this[Range rowRange, Range colRange]
     {
         get => SubMat(rowRange, colRange);
         set
@@ -1380,10 +1422,8 @@ public partial class Mat : DisposableCvObject
     /// </summary>
     /// <param name="range"></param>
     /// <returns></returns>
-    public Mat ColRange(OpenCvSharp.Range range)
-    {
-        return ColRange(range.Start, range.End);
-    }
+    public Mat ColRange(Range range) 
+        => ColRange(range.Start, range.End);
 
 #if NETCOREAPP3_1_OR_GREATER || NETSTANDARD2_1
     /// <summary>
@@ -1431,10 +1471,8 @@ public partial class Mat : DisposableCvObject
     /// </summary>
     /// <param name="range"></param>
     /// <returns></returns>
-    public Mat RowRange(OpenCvSharp.Range range)
-    {
-        return RowRange(range.Start, range.End);
-    }
+    public Mat RowRange(Range range) 
+        => RowRange(range.Start, range.End);
 
 #if NETCOREAPP3_1_OR_GREATER || NETSTANDARD2_1
     /// <summary>
@@ -1587,7 +1625,7 @@ public partial class Mat : DisposableCvObject
             throw new ArgumentNullException(nameof(m));
 
         NativeMethods.HandleException(
-            NativeMethods.core_Mat_assignTo(ptr, m.CvPtr, type ?? -1));
+            NativeMethods.core_Mat_assignTo(ptr, m.CvPtr, type?.Value ?? -1));
 
         GC.KeepAlive(this);
         GC.KeepAlive(m);
@@ -1788,10 +1826,8 @@ public partial class Mat : DisposableCvObject
     /// </summary>
     /// <param name="size">Alternative new matrix size specification: Size(cols, rows)</param>
     /// <param name="type">New matrix type.</param>
-    public void Create(Size size, MatType type)
-    {
-        Create(size.Height, size.Width, type);
-    }
+    public void Create(Size size, MatType type) 
+        => Create(size.Height, size.Width, type);
 
     /// <summary>
     /// Allocates new array data if needed.
@@ -2423,6 +2459,9 @@ public partial class Mat : DisposableCvObject
             NativeMethods.core_Mat_subMat1(ptr, rowStart, rowEnd, colStart, colEnd, out var ret));
         GC.KeepAlive(this);
         var retVal = new Mat(ret);
+
+        // If this is a managed array, keep the array pinned as long as the Mat is alive
+        retVal.pinLifetime = pinLifetime?.Ref();
         return retVal;
     }
 
@@ -2434,10 +2473,8 @@ public partial class Mat : DisposableCvObject
     /// <param name="colRange">Start and end column of the extracted submatrix. The upper boundary is not included.
     /// To select all the columns, use Range::all().</param>
     /// <returns></returns>
-    public Mat SubMat(OpenCvSharp.Range rowRange, OpenCvSharp.Range colRange)
-    {
-        return SubMat(rowRange.Start, rowRange.End, colRange.Start, colRange.End);
-    }
+    public Mat SubMat(Range rowRange, Range colRange) 
+        => SubMat(rowRange.Start, rowRange.End, colRange.Start, colRange.End);
 
 #if NETCOREAPP3_1_OR_GREATER || NETSTANDARD2_1
     /// <summary>
@@ -2461,10 +2498,8 @@ public partial class Mat : DisposableCvObject
     /// </summary>
     /// <param name="roi">Extracted submatrix specified as a rectangle.</param>
     /// <returns></returns>
-    public Mat SubMat(Rect roi)
-    {
-        return SubMat(roi.Y, roi.Y + roi.Height, roi.X, roi.X + roi.Width);
-    }
+    public Mat SubMat(Rect roi) 
+        => SubMat(roi.Y, roi.Y + roi.Height, roi.X, roi.X + roi.Width);
 
     /// <summary>
     /// Extracts a rectangular submatrix.
@@ -2989,10 +3024,8 @@ public partial class Mat : DisposableCvObject
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
-    public UnsafeIndexer<T> GetUnsafeGenericIndexer<T>() where T : unmanaged
-    {
-        return new UnsafeIndexer<T>(this);
-    }
+    public UnsafeIndexer<T> GetUnsafeGenericIndexer<T>() where T : unmanaged 
+        => new(this);
 
 #pragma warning disable CA1034
     /// <summary>
@@ -3419,50 +3452,50 @@ public partial class Mat : DisposableCvObject
         
     private static readonly IReadOnlyDictionary<Type, MatType[]> acceptableTypesMap = new Dictionary<Type, MatType[]>
     {
-        {typeof(byte), new[]{MatType.CV_8SC1, MatType.CV_8UC1}},
-        {typeof(sbyte), new[]{MatType.CV_8SC1, MatType.CV_8UC1}},
-        {typeof(short), new[]{MatType.CV_16SC1, MatType.CV_16UC1}},
-        {typeof(ushort), new[]{MatType.CV_16SC1, MatType.CV_16UC1}},
-        {typeof(int), new[]{MatType.CV_32SC1}},
-        {typeof(float), new[]{MatType.CV_32FC1}},
-        {typeof(double), new[]{MatType.CV_64FC1}},
-        {typeof(Point), new[]{MatType.CV_32SC2}},
-        {typeof(Point2f), new[]{MatType.CV_32FC2}},
-        {typeof(Point2d), new[]{MatType.CV_64FC2}},
-        {typeof(Point3i), new[]{MatType.CV_32SC3}},
-        {typeof(Point3f), new[]{MatType.CV_32FC3}},
-        {typeof(Point3d), new[]{MatType.CV_64FC3}},
-        {typeof(Size), new[]{MatType.CV_32SC2}},
-        {typeof(Size2f), new[]{MatType.CV_32FC2}},
-        {typeof(Size2d), new[]{MatType.CV_64FC2}},
-        {typeof(Rect), new[]{MatType.CV_32SC4}},
-        {typeof(Rect2f), new[]{MatType.CV_32FC4}},
-        {typeof(Rect2d), new[]{MatType.CV_64FC4}},
+        {typeof(byte), [MatType.CV_8SC1, MatType.CV_8UC1] },
+        {typeof(sbyte), [MatType.CV_8SC1, MatType.CV_8UC1] },
+        {typeof(short), [MatType.CV_16SC1, MatType.CV_16UC1] },
+        {typeof(ushort), [MatType.CV_16SC1, MatType.CV_16UC1] },
+        {typeof(int), [MatType.CV_32SC1] },
+        {typeof(float), [MatType.CV_32FC1] },
+        {typeof(double), [MatType.CV_64FC1] },
+        {typeof(Point), [MatType.CV_32SC2] },
+        {typeof(Point2f), [MatType.CV_32FC2] },
+        {typeof(Point2d), [MatType.CV_64FC2] },
+        {typeof(Point3i), [MatType.CV_32SC3] },
+        {typeof(Point3f), [MatType.CV_32FC3] },
+        {typeof(Point3d), [MatType.CV_64FC3] },
+        {typeof(Size), [MatType.CV_32SC2] },
+        {typeof(Size2f), [MatType.CV_32FC2] },
+        {typeof(Size2d), [MatType.CV_64FC2] },
+        {typeof(Rect), [MatType.CV_32SC4] },
+        {typeof(Rect2f), [MatType.CV_32FC4] },
+        {typeof(Rect2d), [MatType.CV_64FC4] },
         //{typeof(DMatch), new[]{MatType.CV_32FC4}},
-        {typeof(Vec2b), new[]{MatType.CV_8UC2}},
-        {typeof(Vec2s), new[]{MatType.CV_16SC2}},
-        {typeof(Vec2w), new[]{MatType.CV_16UC2}},
-        {typeof(Vec2i), new[]{MatType.CV_32SC2}},
-        {typeof(Vec2f), new[]{MatType.CV_32FC2}},
-        {typeof(Vec2d), new[]{MatType.CV_64FC2}},
-        {typeof(Vec3b), new[]{MatType.CV_8UC3}},
-        {typeof(Vec3s), new[]{MatType.CV_16SC3}},
-        {typeof(Vec3w), new[]{MatType.CV_16UC3}},
-        {typeof(Vec3i), new[]{MatType.CV_32SC3}},
-        {typeof(Vec3f), new[]{MatType.CV_32FC3}},
-        {typeof(Vec3d), new[]{MatType.CV_64FC3}},
-        {typeof(Vec4b), new[]{MatType.CV_8UC4}},
-        {typeof(Vec4s), new[]{MatType.CV_16SC4}},
-        {typeof(Vec4w), new[]{MatType.CV_16UC4}},
-        {typeof(Vec4i), new[]{MatType.CV_32SC4}},
-        {typeof(Vec4f), new[]{MatType.CV_32FC4}},
-        {typeof(Vec4d), new[]{MatType.CV_64FC4}},
-        {typeof(Vec6b), new[]{MatType.CV_8UC(6)}},
-        {typeof(Vec6s), new[]{MatType.CV_16SC(6)}},
-        {typeof(Vec6w), new[]{MatType.CV_16UC(6)}},
-        {typeof(Vec6i), new[]{MatType.CV_32SC(6)}},
-        {typeof(Vec6f), new[]{MatType.CV_32FC(6)}},
-        {typeof(Vec6d), new[]{MatType.CV_64FC(6)}},
+        {typeof(Vec2b), [MatType.CV_8UC2] },
+        {typeof(Vec2s), [MatType.CV_16SC2] },
+        {typeof(Vec2w), [MatType.CV_16UC2] },
+        {typeof(Vec2i), [MatType.CV_32SC2] },
+        {typeof(Vec2f), [MatType.CV_32FC2] },
+        {typeof(Vec2d), [MatType.CV_64FC2] },
+        {typeof(Vec3b), [MatType.CV_8UC3] },
+        {typeof(Vec3s), [MatType.CV_16SC3] },
+        {typeof(Vec3w), [MatType.CV_16UC3] },
+        {typeof(Vec3i), [MatType.CV_32SC3] },
+        {typeof(Vec3f), [MatType.CV_32FC3] },
+        {typeof(Vec3d), [MatType.CV_64FC3] },
+        {typeof(Vec4b), [MatType.CV_8UC4] },
+        {typeof(Vec4s), [MatType.CV_16SC4] },
+        {typeof(Vec4w), [MatType.CV_16UC4] },
+        {typeof(Vec4i), [MatType.CV_32SC4] },
+        {typeof(Vec4f), [MatType.CV_32FC4] },
+        {typeof(Vec4d), [MatType.CV_64FC4] },
+        {typeof(Vec6b), [MatType.CV_8UC(6)] },
+        {typeof(Vec6s), [MatType.CV_16SC(6)] },
+        {typeof(Vec6w), [MatType.CV_16UC(6)] },
+        {typeof(Vec6i), [MatType.CV_32SC(6)] },
+        {typeof(Vec6f), [MatType.CV_32FC(6)] },
+        {typeof(Vec6d), [MatType.CV_64FC(6)] },
     };
 
     private void CheckArgumentsForConvert<T>(Array data)
@@ -3483,7 +3516,7 @@ public partial class Mat : DisposableCvObject
             throw new OpenCvSharpException(
                 $"Provided data element number ({data.Length}) should be multiple of the Mat channels count ({t.Channels})");
 
-        if (acceptableTypes is not null && acceptableTypes.Length > 0)
+        if (acceptableTypes.Length > 0)
         {
             var isValidDepth = acceptableTypes.Any(type => type == t);
             if (!isValidDepth)
@@ -3621,10 +3654,8 @@ public partial class Mat : DisposableCvObject
     /// <param name="ext">Encodes an image into a memory buffer.</param>
     /// <param name="prms">Format-specific parameters.</param>
     /// <returns></returns>
-    public byte[] ToBytes(string ext = ".png", int[]? prms = null)
-    {
-        return ImEncode(ext, prms);
-    }
+    public byte[] ToBytes(string ext = ".png", int[]? prms = null) 
+        => ImEncode(ext, prms);
 
     /// <summary>
     /// Encodes an image into a memory buffer.
@@ -3632,10 +3663,8 @@ public partial class Mat : DisposableCvObject
     /// <param name="ext">Encodes an image into a memory buffer.</param>
     /// <param name="prms">Format-specific parameters.</param>
     /// <returns></returns>
-    public byte[] ToBytes(string ext = ".png", params ImageEncodingParam[] prms)
-    {
-        return ImEncode(ext, prms);
-    }
+    public byte[] ToBytes(string ext = ".png", params ImageEncodingParam[] prms) 
+        => ImEncode(ext, prms);
 
     /// <summary>
     /// Converts Mat to System.IO.MemoryStream
@@ -3645,7 +3674,8 @@ public partial class Mat : DisposableCvObject
     /// <returns></returns>
     public MemoryStream ToMemoryStream(string ext = ".png", params ImageEncodingParam[] prms)
     {
-        return new MemoryStream(ToBytes(ext, prms));
+        var bytes = ToBytes(ext, prms);
+        return new MemoryStream(bytes, 0, bytes.Length, writable: false, publiclyVisible: true);
     }
 
     /// <summary>
@@ -4112,8 +4142,8 @@ public partial class Mat : DisposableCvObject
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
-    public unsafe Span<T> AsSpan<T>() where T : unmanaged 
-        => IsContinuous() ? new Span<T>(DataPointer, (int)Total()) : Span<T>.Empty;
+    public unsafe Span<T> AsSpan<T>() where T : unmanaged  
+        => IsContinuous() ? new Span<T>(DataPointer, (int)Total() * ElemSize() / sizeof(T)) : [];
 
     #endregion
 }

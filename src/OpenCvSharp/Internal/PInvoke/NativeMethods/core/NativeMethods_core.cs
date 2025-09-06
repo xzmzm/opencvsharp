@@ -1,5 +1,4 @@
-﻿using System;
-using System.Diagnostics.Contracts;
+﻿using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 
 #pragma warning disable 1591
@@ -11,6 +10,9 @@ namespace OpenCvSharp.Internal;
 
 static partial class NativeMethods
 {
+    [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern RotatedRect core_RotatedRect_byThreeVertexPoints(Point2f p1, Point2f p2, Point2f p3);
+
     #region utility.hpp
 
     [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
@@ -32,7 +34,7 @@ static partial class NativeMethods
     public static extern ExceptionStatus core_getBuildInformation(IntPtr buf);
 
     [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, BestFitMapping = false, ThrowOnUnmappableChar = true, ExactSpelling = true)]
-    public static unsafe extern ExceptionStatus core_getVersionString(byte* buf, int maxLength);
+    public static extern unsafe ExceptionStatus core_getVersionString(byte* buf, int maxLength);
     [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
     public static extern ExceptionStatus core_getVersionMajor(out int returnValue);
     [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
@@ -77,6 +79,16 @@ static partial class NativeMethods
         
     [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
     public static extern ExceptionStatus core_format(IntPtr mtx, int fmt, IntPtr buf);
+
+    #endregion
+
+    #region logger.hpp
+
+    [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern ExceptionStatus core_logger_setLogLevel(LogLevel logLevel, out LogLevel returnValue);
+
+    [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern ExceptionStatus core_logger_getLogLevel(out LogLevel returnValue);
 
     #endregion
 

@@ -1,7 +1,4 @@
-using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using OpenCvSharp.Internal;
 using OpenCvSharp.Internal.Util;
 using OpenCvSharp.Internal.Vectors;
@@ -52,9 +49,9 @@ static partial class Cv2
         if (vector is null)
             throw new ArgumentNullException(nameof(vector));
         if (vector.Length != 3)
-            throw new ArgumentException("vector.Length != 3");
+            throw new ArgumentException("Length != 3", nameof(vector));
 
-        using var vectorM = new Mat(3, 1, MatType.CV_64FC1, vector);
+        using var vectorM = Mat.FromPixelData(3, 1, MatType.CV_64FC1, vector);
         using var matrixM = new Mat<double>();
         using var jacobianM = new Mat<double>();
         using var vectorInputArray = InputArray.Create(vectorM);
@@ -78,7 +75,7 @@ static partial class Cv2
         if (matrix.GetLength(0) != 3 || matrix.GetLength(1) != 3)
             throw new ArgumentException("matrix must be double[3,3]");
 
-        using var matrixM = new Mat(3, 3, MatType.CV_64FC1, matrix);
+        using var matrixM = Mat.FromPixelData(3, 3, MatType.CV_64FC1, matrix);
         using var vectorM = new Mat<double>();
         using var jacobianM = new Mat<double>();
         using var matrixOutputArray = InputArray.Create(matrixM);
@@ -275,7 +272,7 @@ static partial class Cv2
         if (src.GetLength(0) != 3 || src.GetLength(1) != 3)
             throw new ArgumentException("src must be double[3,3]");
 
-        using var srcM = new Mat(3, 3, MatType.CV_64FC1, src);
+        using var srcM = Mat.FromPixelData(3, 3, MatType.CV_64FC1, src);
         using var mtxRM = new Mat<double>();
         using var mtxQM = new Mat<double>();
         using var qxM = new Mat<double>();
@@ -378,7 +375,7 @@ static partial class Cv2
         if (!((dim0 == 3 && dim1 == 4) || (dim0 == 4 && dim1 == 3)))
             throw new ArgumentException("projMatrix must be double[3,4] or double[4,3]");
 
-        using var projMatrixM = new Mat(3, 4, MatType.CV_64FC1, projMatrix);
+        using var projMatrixM = Mat.FromPixelData(3, 4, MatType.CV_64FC1, projMatrix);
         using var cameraMatrixM = new Mat<double>();
         using var rotMatrixM = new Mat<double>();
         using var transVectM = new Mat<double>();
@@ -551,10 +548,10 @@ static partial class Cv2
         if (tvec2 is null)
             throw new ArgumentNullException(nameof(tvec2));
 
-        using var rvec1M = new Mat(3, 1, MatType.CV_64FC1, rvec1);
-        using var tvec1M = new Mat(3, 1, MatType.CV_64FC1, tvec1);
-        using var rvec2M = new Mat(3, 1, MatType.CV_64FC1, rvec2);
-        using var tvec2M = new Mat(3, 1, MatType.CV_64FC1, tvec2);
+        using var rvec1M = Mat.FromPixelData(3, 1, MatType.CV_64FC1, rvec1);
+        using var tvec1M = Mat.FromPixelData(3, 1, MatType.CV_64FC1, tvec1);
+        using var rvec2M = Mat.FromPixelData(3, 1, MatType.CV_64FC1, rvec2);
+        using var tvec2M = Mat.FromPixelData(3, 1, MatType.CV_64FC1, tvec2);
         using var rvec3M = new Mat<double>();
         using var tvec3M = new Mat<double>();
         using var dr3dr1M = new Mat<double>();
@@ -715,13 +712,13 @@ static partial class Cv2
             throw new ArgumentException("cameraMatrix must be double[3,3]");
 
         var objectPointsArray = objectPoints as Point3f[] ?? objectPoints.ToArray();
-        using var objectPointsM = new Mat(objectPointsArray.Length, 1, MatType.CV_32FC3, objectPointsArray);
-        using var rvecM = new Mat(3, 1, MatType.CV_64FC1, rvec);
-        using var tvecM = new Mat(3, 1, MatType.CV_64FC1, tvec);
-        using var cameraMatrixM = new Mat(3, 3, MatType.CV_64FC1, cameraMatrix);
+        using var objectPointsM = Mat.FromPixelData(objectPointsArray.Length, 1, MatType.CV_32FC3, objectPointsArray);
+        using var rvecM = Mat.FromPixelData(3, 1, MatType.CV_64FC1, rvec);
+        using var tvecM = Mat.FromPixelData(3, 1, MatType.CV_64FC1, tvec);
+        using var cameraMatrixM = Mat.FromPixelData(3, 3, MatType.CV_64FC1, cameraMatrix);
         using var distCoeffsM = (distCoeffs is null)
             ? new Mat()
-            : new Mat(distCoeffs.Length, 1, MatType.CV_64FC1, distCoeffs);
+            : Mat.FromPixelData(distCoeffs.Length, 1, MatType.CV_64FC1, distCoeffs);
         using var imagePointsM = new Mat<Point2f>();
         using var jacobianM = new Mat<double>();
         NativeMethods.HandleException(
@@ -1436,7 +1433,7 @@ static partial class Cv2
     /// <param name="tvecs">Output vector of translation vectors estimated for each pattern view.</param>
     /// <param name="flags">Different flags that may be zero or a combination of the CalibrationFlag values</param>
     /// <param name="criteria">Termination criteria for the iterative optimization algorithm.</param>
-    /// <returns></returns>
+    /// <returns>Root mean square (RMS) re-projection error. A value below 1.0 is generally considered acceptable for a good calibration.</returns>
     public static double CalibrateCamera(
         IEnumerable<Mat> objectPoints,
         IEnumerable<Mat> imagePoints,
@@ -1508,7 +1505,7 @@ static partial class Cv2
     /// <param name="tvecs">Output vector of translation vectors estimated for each pattern view.</param>
     /// <param name="flags">Different flags that may be zero or a combination of the CalibrationFlag values</param>
     /// <param name="criteria">Termination criteria for the iterative optimization algorithm.</param>
-    /// <returns></returns>
+    /// <returns>Root mean square (RMS) re-projection error. A value below 1.0 is generally considered acceptable for a good calibration.</returns>
     public static double CalibrateCamera(
         IEnumerable<IEnumerable<Point3f>> objectPoints,
         IEnumerable<IEnumerable<Point2f>> imagePoints,
@@ -2368,7 +2365,7 @@ static partial class Cv2
             }
         }
 
-        using var mat = new Mat<double>(matPtr);
+        using var mat = Mat<double>.FromNativePointer(matPtr);
         return mat.ToRectangularArray();
     }
 

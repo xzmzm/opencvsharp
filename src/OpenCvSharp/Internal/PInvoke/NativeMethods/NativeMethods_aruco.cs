@@ -1,5 +1,4 @@
-﻿using System;
-using System.Diagnostics.Contracts;
+﻿using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using OpenCvSharp.Aruco;
 
@@ -35,6 +34,9 @@ static partial class NativeMethods
     public static extern ExceptionStatus aruco_getPredefinedDictionary(int name, out IntPtr returnValue);
 
     [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern ExceptionStatus aruco_readDictionary(string dictionaryFile, out IntPtr returnValue);
+
+    [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
     public static extern ExceptionStatus aruco_detectCharucoDiamond(
         IntPtr image, [MarshalAs(UnmanagedType.LPArray)] IntPtr[] markerCorners, int markerCornersSize1, int[] markerCornersSize2,
         IntPtr markerIds, float squareMarkerLengthRate,
@@ -45,6 +47,24 @@ static partial class NativeMethods
         IntPtr image,
         [MarshalAs(UnmanagedType.LPArray)] IntPtr[] corners, int cornerSize1, int[] contoursSize2,
         IntPtr ids, Scalar borderColor);
+
+    [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern ExceptionStatus aruco_detectCharucoBoard(
+        IntPtr image,
+        int squaresX, int squaresY, float squareLength, float markerLength, int arucoDictId,
+        IntPtr charucoCorners, IntPtr charucoIds, IntPtr markerCorners, IntPtr markerIds);
+
+    [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern ExceptionStatus aruco_interpolateCornersCharuco(
+        IntPtr image,
+        int squaresX, int squaresY, float squareLength, float markerLength, int arucoDictId,
+        [MarshalAs(UnmanagedType.LPArray)] IntPtr[] markerCorners, int markerCornersSize1, int[] markerCornersSize2, IntPtr markerIds,
+        IntPtr charucoCorners, IntPtr charucoIds);
+
+    [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern ExceptionStatus aruco_drawDetectedCornersCharuco(
+        IntPtr image,
+        IntPtr corners, IntPtr ids, Scalar cornerColor);
 
     #region Dictionary
 
