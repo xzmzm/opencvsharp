@@ -19,11 +19,11 @@ namespace OpenCvSharpEx.Internal
         private const UnmanagedType StringUnmanagedTypeWindows = UnmanagedType.LPStr;
 
         private const UnmanagedType StringUnmanagedTypeNotWindows = UnmanagedType.LPStr;
-//#if NET48 || NETSTANDARD2_0
-//            UnmanagedType.LPStr;
-//#else
-//        UnmanagedType.LPUTF8Str;
-//#endif
+        //#if NET48 || NETSTANDARD2_0
+        //            UnmanagedType.LPStr;
+        //#else
+        //        UnmanagedType.LPUTF8Str;
+        //#endif
         [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern ExceptionStatus shapematcher_ShapeMatcher_new(IntPtr pattern, double minAngle, double maxAngle, double angleStep, double acceptancePercentage, int nFeatures, int pyramidLevels, out IntPtr shapeMatcher);
 
@@ -36,7 +36,7 @@ namespace OpenCvSharpEx.Internal
         [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern ExceptionStatus shapematcher_ShapeMatcher_searchFusion(IntPtr shapeMatcherObj, IntPtr image, bool refineResults, out OpenCvSharp.Point2d location, out double angle, ref double score, out int templateID);
         [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-        public static extern ExceptionStatus shapematcher_ShapeMatcher_getPaddedPattern(IntPtr shapeMatcherObj, double angle, out IntPtr paddedPattern);
+        public static extern ExceptionStatus shapematcher_ShapeMatcher_getPaddedPattern(IntPtr shapeMatcherObj, double angle, IntPtr outPaddedPattern);
         [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern ExceptionStatus shapematcher_ShapeMatcher_getFeaturesCount(IntPtr shapeMatcherObj, int templateIndex, out int featuresCount);
         [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
