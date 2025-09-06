@@ -437,40 +437,129 @@ void ShapeMatcher::search(cv::Mat *image, int refinementLevel, bool useFusion, c
         int offset = lowest_T / 2 + (lowest_T % 2 - 1);
         int coarse_x_low = (int)round((match.x / pyramid_scale) - offset);
         int coarse_y_low = (int)round((match.y / pyramid_scale) - offset);
-        int lm_index = (coarse_y_low / lowest_T) * (lowest_size.width / lowest_T) + (coarse_x_low / lowest_T);
 
-        float raw_score_prev = computeScoreAt(lowest_lm, templ_prev, lowest_size, lowest_T, lm_index);
-        float raw_score_next = computeScoreAt(lowest_lm, templ_next, lowest_size, lowest_T, lm_index);
+        int W_low = lowest_size.width / lowest_T;
+        int H_low = lowest_size.height / lowest_T;
+        int lm_index = (coarse_y_low / lowest_T) * W_low + (coarse_x_low / lowest_T);
+        int lm_x = lm_index % W_low;
+        int lm_y = lm_index / W_low;
 
-        float s_curr = match.similarity;
-        float s_prev = raw_score_prev * 100.0f / (4.0f * templ_prev.features.size());
-        float s_next = raw_score_next * 100.0f / (4.0f * templ_next.features.size());
+        cv::Point2d refined_location_prev, refined_location_curr, refined_location_next;
+        float refined_score_prev, refined_score_curr, refined_score_next;
 
+        auto refine_location = [&](const line2Dup::Template &templ, cv::Point2d &refined_loc, float &refined_score)
+        {
+            if (lm_x > 0 && lm_x < W_low - 1 && lm_y > 0 && lm_y < H_low - 1)
+            {
+                float raw_s_c = computeScoreAt(lowest_lm, templ, lowest_size, lowest_T, lm_index);
+                float raw_s_l = computeScoreAt(lowest_lm, templ, lowest_size, lowest_T, lm_index - 1);
+                float raw_s_r = computeScoreAt(lowest_lm, templ, lowest_size, lowest_T, lm_index + 1);
+                float raw_s_t = computeScoreAt(lowest_lm, templ, lowest_size, lowest_T, lm_index - W_low);
+                float raw_s_b = computeScoreAt(lowest_lm, templ, lowest_size, lowest_T, lm_index + W_low);
+
+                float norm_factor = 100.0f / (4.0f * templ.features.size());
+                float s_c = raw_s_c * norm_factor;
+                float s_l = raw_s_l * norm_factor;
+                float s_r = raw_s_r * norm_factor;
+                float s_t = raw_s_t * norm_factor;
+                float s_b = raw_s_b * norm_factor;
+
+                double dx = 0.0, dy = 0.0;
+
+                float den_x = 2.0f * (s_l + s_r - 2.0f * s_c);
+                if (std::abs(den_x) > 1e-5f)
+                {
+                    dx = (s_l - s_r) / den_x;
+                    if (std::abs(dx) > 1.0)
+                        dx = 0.0;
+                }
+
+                float den_y = 2.0f * (s_t + s_b - 2.0f * s_c);
+                if (std::abs(den_y) > 1e-5f)
+                {
+                    dy = (s_t - s_b) / den_y;
+                    if (std::abs(dy) > 1.0)
+                        dy = 0.0;
+                }
+
+                refined_loc.x = x + dx * lowest_T * pyramid_scale;
+                refined_loc.y = y + dy * lowest_T * pyramid_scale;
+
+                double a_x = (s_l + s_r - 2 * s_c) / 2.0;
+                double b_x = (s_r - s_l) / 2.0;
+                double score_x = a_x * dx * dx + b_x * dx + s_c;
+
+                double a_y = (s_t + s_b - 2 * s_c) / 2.0;
+                double b_y = (s_b - s_t) / 2.0;
+                double score_y = a_y * dy * dy + b_y * dy + s_c;
+
+                refined_score = std::max(s_c, (float)((score_x + score_y) / 2.0));
+            }
+            else
+            {
+                refined_loc = cv::Point2d(x, y);
+                float raw_s_c = computeScoreAt(lowest_lm, templ, lowest_size, lowest_T, lm_index);
+                refined_score = raw_s_c * 100.0f / (4.0f * templ.features.size());
+            }
+        };
+
+        refine_location(templ_prev, refined_location_prev, refined_score_prev);
+        refine_location(templ_curr, refined_location_curr, refined_score_curr);
+        refined_score_curr = std::max(match.similarity, refined_score_curr);
+        refine_location(templ_next, refined_location_next, refined_score_next);
+
+        double a_prev = this->infos_have_templ[prev_tid].angle;
         double a_curr = this->infos_have_templ[best_tid].angle;
+        double a_next = this->infos_have_templ[next_tid].angle;
 
-        double y1 = s_prev, y2 = s_curr, y3 = s_next;
+        if (a_curr < this->angleStep && a_prev > 180)
+            a_prev -= 360;
+        if (a_curr > 360 - this->angleStep && a_next < 180)
+            a_next += 360;
+
+        double y1 = refined_score_prev, y2 = refined_score_curr, y3 = refined_score_next;
         double den = 2 * (y1 + y3 - 2 * y2);
 
         double refined_angle = a_curr;
-        double refined_score = s_curr;
+        double final_score = y2;
+        cv::Point2d final_location = refined_location_curr;
 
         if (std::abs(den) > 1e-5)
         {
             double angle_offset = (y1 - y3) * this->angleStep / den;
-            refined_angle = a_curr + angle_offset;
+            if (std::abs(angle_offset) < this->angleStep)
+            {
+                refined_angle = a_curr + angle_offset;
 
-            double a = (y1 + y3 - 2 * y2) / (2 * this->angleStep * this->angleStep);
-            double b = (y3 - y1) / (2 * this->angleStep);
-            refined_score = a * angle_offset * angle_offset + b * angle_offset + y2;
+                double a = (y1 + y3 - 2 * y2) / (2 * this->angleStep * this->angleStep);
+                double b = (y3 - y1) / (2 * this->angleStep);
+                final_score = a * angle_offset * angle_offset + b * angle_offset + y2;
+
+                if (angle_offset > 0)
+                {
+                    double w = angle_offset / this->angleStep;
+                    final_location.x = (1 - w) * refined_location_curr.x + w * refined_location_next.x;
+                    final_location.y = (1 - w) * refined_location_curr.y + w * refined_location_next.y;
+                }
+                else
+                {
+                    double w = -angle_offset / this->angleStep;
+                    final_location.x = (1 - w) * refined_location_curr.x + w * refined_location_prev.x;
+                    final_location.y = (1 - w) * refined_location_curr.y + w * refined_location_prev.y;
+                }
+            }
         }
 
-        *retPoint = cv::Point2d(x, y);
-        while (refined_angle >= 360.0) refined_angle -= 360.0;
-        while (refined_angle < 0.0) refined_angle += 360.0;
+        *retPoint = final_location;
+
+        while (refined_angle >= 360.0)
+            refined_angle -= 360.0;
+        while (refined_angle < 0.0)
+            refined_angle += 360.0;
         refined_angle = refined_angle >= 180 ? (refined_angle - 360) : refined_angle;
         *angle = -refined_angle;
 
-        *score = refined_score > 100.0 ? 100.0 : (refined_score < 0 ? 0 : refined_score);
+        *score = final_score > 100.0 ? 100.0 : (final_score < 0 ? 0 : final_score);
         *templateID = match.template_id;
         break;
     }
