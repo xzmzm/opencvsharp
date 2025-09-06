@@ -124,3 +124,4 @@ UpgradeLog*.XML
 /test/OpenCvSharp.Tests/*.dll
 Help
 /tesseract_files
+*.csproj.dtbcache.json

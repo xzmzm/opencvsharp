@@ -89,7 +89,7 @@ namespace OpenCvSharpEx
             if (this.shapeMatcherObj == IntPtr.Zero)
                 throw new OpenCvSharpException("No pattern is taught yet.");
             var ret = NativeMethods.shapematcher_ShapeMatcher_getPaddedPattern(this.shapeMatcherObj, angle, out var ptr);
-            return new Mat(ptr);
+            return Mat.FromNativePointer(ptr);
         }
         ~ShapeMatcher()
         {

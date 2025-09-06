@@ -1162,7 +1162,7 @@ std::vector<Match> Detector::match_fusion(cv::Mat source, float threshold, const
     const int tileRows = 32;
     const int tileCols = 256;
     const int num_threads_ = 4;
-    const float res_map_mag_thresh = this->modality->strong_threshold;
+    const float res_map_mag_thresh = this->modality->weak_threshold;
     const int32_t mag_thresh_l2 = int32_t(res_map_mag_thresh * res_map_mag_thresh);
 
     cv::Mat pyrdown_src;
