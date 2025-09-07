@@ -1205,19 +1205,15 @@ namespace line2Dup
     {
         Timer timer;
         std::vector<Match> matches;
-
-        // --------- fusion version of response map creation
+        // --------- fusion version of response map creation ---------
         this->last_lm_pyramid.assign(pyramid_levels, std::vector<LinearMemories>(1, LinearMemories(8)));
         this->last_sizes.clear();
-
         bool set_produce_dxy = true;
-
         assert(mask.empty() && "mask not support yet");
-
-        // no need to crop now, we deal with it internally
-        const int lcm_Ts = least_mul_of_Ts(T_at_level);
-        const int biggest_imgRows = source.rows / lcm_Ts * lcm_Ts;
-        const int biggest_imgCols = source.cols / lcm_Ts * lcm_Ts;
+        // The search image is now pre-padded to be a multiple of pyramid T levels,
+        // so we don't need to crop it here anymore. This fixes coordinate system bugs.
+        const int biggest_imgRows = source.rows;
+        const int biggest_imgCols = source.cols;
 
         const int tileRows = 32;
         const int tileCols = 256;

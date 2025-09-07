@@ -133,23 +133,21 @@ void ShapeMatcher::search(cv::Mat *image, int refinementLevel, bool useFusion, c
     //    continuous memory block. It requires the image's stride (width in memory) to be a multiple of 16
     //    to allow for efficient, branch-free vector processing in its inner loops.
     // Forcing one padding strategy on the other would break its specific performance optimizations.
+    // The original code had different padding for fusion and non-fusion, with fusion mode
+    // cropping internally. This led to coordinate system errors. The fix is to use the same
+    // padding logic for both, ensuring dimensions are a multiple of 16 (lcm of T levels for {4, 8}),
+    // and remove the internal cropping in the fusion path.
+    int stride = 16;
+    int n = (image->rows + 2 * ImagePadding + stride - 1) / stride;
+    int m = (image->cols + 2 * ImagePadding + stride - 1) / stride;
+    padded_img = cv::Mat(stride * n, stride * m, img1.type(), cv::Scalar::all(0));
+    img1.copyTo(padded_img(cv::Rect(ImagePadding, ImagePadding, img1.cols, img1.rows)));
+    assert(padded_img.isContinuous());
+
     if (useFusion)
-    {
-        padded_img = cv::Mat(image->rows + 2 * ImagePadding,
-                             image->cols + 2 * ImagePadding, img1.type(), cv::Scalar::all(0));
-        img1.copyTo(padded_img(cv::Rect(ImagePadding, ImagePadding, image->cols, image->rows)));
         matches = this->detector->match_fusion(padded_img, *score, ids);
-    }
     else
-    {
-        int stride = 16;
-        int n = (image->rows + 2 * ImagePadding) / stride;
-        int m = (image->cols + 2 * ImagePadding) / stride;
-        padded_img = cv::Mat(stride * n, stride * m, img1.type(), cv::Scalar::all(0));
-        img1.copyTo(padded_img(cv::Rect(ImagePadding, ImagePadding, img1.cols, img1.rows)));
-        assert(padded_img.isContinuous());
         matches = this->detector->match(padded_img, *score, ids);
-    }
     // timer.out();
     if (matches.empty())
     {
