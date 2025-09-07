@@ -129,3 +129,5 @@ Help
 *.db-wal
 *.vsidx
 .dtbcache.v2
+src/OpenCvSharpEx.Sample/.vs/OpenCvSharpEx.Sample/v17/DocumentLayout.backup.json
+.vs/
