@@ -131,3 +131,5 @@ Help
 .dtbcache.v2
 src/OpenCvSharpEx.Sample/.vs/OpenCvSharpEx.Sample/v17/DocumentLayout.backup.json
 .vs/
+Debug1/
+src/OpenCvSharpEx.Sample/Properties/launchSettings.json

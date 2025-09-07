@@ -784,10 +784,10 @@ namespace line2Dup
         }
     }
     /****************************************************************************************\
-    *                                                             Linearized similarities                                                                    *
-    \****************************************************************************************/
+*                                                             Linearized similarities                                                                    *
+\****************************************************************************************/
 
-    static const unsigned char *accessLinearMemory(const std::vector<Mat> &linear_memories,
+    const unsigned char *accessLinearMemory(const std::vector<Mat> &linear_memories,
                                                    const Feature &f, int T, int W)
     {
         // Retrieve the TxT grid of linear memories associated with the feature label
@@ -866,7 +866,7 @@ namespace line2Dup
         }
     }
 
-    static void similarityLocal(const std::vector<Mat> &linear_memories, const Template &templ,
+    void similarityLocal(const std::vector<Mat> &linear_memories, const Template &templ,
                                 Mat &dst, Size size, int T, Point center)
     {
         CV_Assert(templ.features.size() < 8192);
@@ -1000,7 +1000,7 @@ namespace line2Dup
         }
     }
 
-    static void similarityLocal_64(const std::vector<Mat> &linear_memories, const Template &templ,
+    void similarityLocal_64(const std::vector<Mat> &linear_memories, const Template &templ,
                                    Mat &dst, Size size, int T, Point center)
     {
         // Similar to whole-image similarity() above. This version takes a position 'center'

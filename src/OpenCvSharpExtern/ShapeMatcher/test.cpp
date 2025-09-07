@@ -170,7 +170,7 @@ void angle_test(string mode = "test", bool viewICP = false)
             waitKey(1);
 
             std::cout << "\ninfo.angle: " << info.angle << std::endl;
-            int templ_id = detector.addTemplate(shapes.src_of(info), class_id, shapes.mask_of(info));
+            int templ_id = detector.addTemplate(shapes.src_of(info), class_id, shapes.mask_of(info), 63);
             std::cout << "templ_id: " << templ_id << std::endl;
             if (templ_id != -1)
             {

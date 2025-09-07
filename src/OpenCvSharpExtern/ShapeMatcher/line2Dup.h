@@ -157,7 +157,7 @@ namespace line2Dup
         std::vector<Match> match_fusion(cv::Mat source, float threshold, const std::vector<std::string> &class_ids = std::vector<std::string>(), const cv::Mat mask = cv::Mat());
 
         int addTemplate(const cv::Mat sources, const std::string &class_id,
-                        const cv::Mat &object_mask, int num_features = 0);
+                        const cv::Mat &object_mask, int num_features);
 
         int addTemplate_rotate(const std::string &class_id, int zero_id, float theta, cv::Point2f center);
 
@@ -210,6 +210,13 @@ namespace line2Dup
                         const std::string &class_id,
                         const std::vector<TemplatePyramid> &template_pyramids);
     };
+
+    void similarityLocal(const std::vector<cv::Mat>& linear_memories, const Template& templ,
+        cv::Mat& dst, cv::Size size, int T, cv::Point center);
+    void similarityLocal_64(const std::vector<cv::Mat>& linear_memories, const Template& templ,
+        cv::Mat& dst, cv::Size size, int T, cv::Point center);
+    const unsigned char* accessLinearMemory(const std::vector<cv::Mat>& linear_memories,
+        const Feature& f, int T, int W);
 
 } // namespace line2Dup
 
@@ -338,7 +345,16 @@ namespace shape_based_matching
             {
                 assert(angle_range[1] > angle_range[0]);
                 float scale = scale_range[0];
-                for (float angle = angle_range[0]; angle <= angle_range[1] + eps; angle += angle_step)
+                float max_angle = angle_range[1];
+
+                // If it's a full circle, the end angle should not be included
+                // to avoid duplicating the start angle (e.g. 0 and 360 degrees).
+                if (std::abs(angle_range[1] - angle_range[0]) >= 360.0f - eps)
+                {
+                    max_angle -= angle_step;
+                }
+
+                for (float angle = angle_range[0]; angle <= max_angle + eps; angle += angle_step)
                 {
                     infos.emplace_back(angle, scale);
                 }

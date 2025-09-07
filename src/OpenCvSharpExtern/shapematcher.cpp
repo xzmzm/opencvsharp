@@ -95,7 +95,7 @@ void ShapeMatcher::teach(cv::Mat *pattern, int nFeatures = 63, int pyramidLevels
     for (auto &info : this->shapes->infos)
     {
         // For each angle, `src_of(info)` creates a new image by rotating the padded template.
-        int templ_id = this->detector->addTemplate(this->shapes->src_of(info), class_id, this->shapes->mask_of(info));
+        int templ_id = this->detector->addTemplate(this->shapes->src_of(info), class_id, this->shapes->mask_of(info), nFeatures);
         // The detector's addTemplate method then builds an image pyramid for this rotated template and extracts features at each level.
         if (templ_id != -1)
         {
@@ -107,34 +107,6 @@ void ShapeMatcher::getPaddedPattern(double angle, cv::Mat *outPaddedPattern)
 {
     shape_based_matching::shapeInfo_producer::Info info((float)angle, 1.0f);
     *outPaddedPattern = this->shapes->src_of(info);
-}
-
-static const unsigned char *accessLinearMemory(const std::vector<cv::Mat> &linear_memories,
-                                               const line2Dup::Feature &f, int T, int W)
-{
-    // Retrieve the TxT grid of linear memories associated with the feature label
-    const cv::Mat &memory_grid = linear_memories[f.label];
-    // The LM we want is at (x%T, y%T) in the TxT grid (stored as the rows of memory_grid)
-    int grid_x = f.x % T;
-    int grid_y = f.y % T;
-    int grid_index = grid_y * T + grid_x;
-    const unsigned char *memory = memory_grid.ptr(grid_index);
-    // Within the LM, the feature is at (x/T, y/T). W is the "width" of the LM, the
-    // input image width decimated by T.
-    int lm_x = f.x / T;
-    int lm_y = f.y / T;
-    int lm_index = lm_y * W + lm_x;
-    return memory + lm_index;
-}
-
-float computeScoreAt(const std::vector<line2Dup::Detector::LinearMemories> &lm_level,
-                     const line2Dup::Template &templ, cv::Size size, int T, int lm_index)
-{
-    int W = size.width / T;
-    float score = 0;
-    for (const auto &f : templ.features)
-        score += accessLinearMemory(lm_level[0], f, T, W)[lm_index];
-    return score;
 }
 
 void ShapeMatcher::search(cv::Mat *image, int refinementLevel, bool useFusion, cv::Point2d *retPoint, double *angle, double *score, int *templateID, cv::RotatedRect *rotatedBounds)
@@ -189,13 +161,13 @@ void ShapeMatcher::search(cv::Mat *image, int refinementLevel, bool useFusion, c
             *rotatedBounds = cv::RotatedRect();
         return;
     }
-    std::cout << "matches.size(): " << matches.size() << std::endl;
+    // std::cout << "matches.size(): " << matches.size() << std::endl;
 
-    for (size_t i = 0; i < matches.size() && i < 5; ++i)
-    {
-        auto match = matches[i];
-        std::cout << "match.similarity: " << match.template_id << " " << match.similarity << std::endl;
-    }
+    // for (size_t i = 0; i < matches.size() && i < 5; ++i)
+    // {
+    //     auto match = matches[i];
+    //     std::cout << "match.similarity: " << match.template_id << " " << match.similarity << std::endl;
+    // }
 
     // Process only the top match, which is at index 0 because matches are sorted descending by score.
     auto match = matches[0];
@@ -396,10 +368,19 @@ void ShapeMatcher::search(cv::Mat *image, int refinementLevel, bool useFusion, c
     }
     case 4: // FastQuadratic
     {
+        // Refine at the original resolution (pyramid level 0) for best accuracy.
+        int level_idx = 0;
+
+        const auto &lm_level = this->detector->last_lm_pyramid[level_idx];
+        cv::Size size = this->detector->last_sizes[level_idx];
+        int T = this->detector->T_at_level[level_idx];
+
+        cv::Point coarse_loc(match.x, match.y);
+
         int best_tid = match.template_id;
         if (best_tid < 0 || best_tid >= this->infos_have_templ.size())
         {
-            // Fallback to coarse result
+            // Fallback to coarse result if template id is invalid
             *retPoint = cv::Point2d(x, y);
             *angle = -init_angle;
             *score = match.similarity;
@@ -411,111 +392,133 @@ void ShapeMatcher::search(cv::Mat *image, int refinementLevel, bool useFusion, c
         int prev_tid = (best_tid - 1 + num_templates) % num_templates;
         int next_tid = (best_tid + 1) % num_templates;
 
-        int lowest_level_idx = this->detector->pyramidLevels() - 1;
-        auto templ_curr = this->detector->getTemplates("test", best_tid)[lowest_level_idx];
-        auto templ_prev = this->detector->getTemplates("test", prev_tid)[lowest_level_idx];
-        auto templ_next = this->detector->getTemplates("test", next_tid)[lowest_level_idx];
-
-        const auto &lm_pyramid = this->detector->last_lm_pyramid;
-        const auto &sizes = this->detector->last_sizes;
-        const auto &T_at_level = this->detector->T_at_level;
-
-        if (lm_pyramid.empty())
-        { // Fallback if no data
-            *retPoint = cv::Point2d(x, y);
-            *angle = -init_angle;
-            *score = match.similarity;
-            *templateID = match.template_id;
-            break;
-        }
-
-        const auto &lowest_lm = lm_pyramid.back();
-        cv::Size lowest_size = sizes.back();
-        int lowest_T = T_at_level.back();
-
-        int pyramid_scale = 1 << lowest_level_idx;
-        int offset = lowest_T / 2 + (lowest_T % 2 - 1);
-        int coarse_x_low = (int)round((match.x / pyramid_scale) - offset);
-        int coarse_y_low = (int)round((match.y / pyramid_scale) - offset);
-
-        int W_low = lowest_size.width / lowest_T;
-        int H_low = lowest_size.height / lowest_T;
-        int lm_index = (coarse_y_low / lowest_T) * W_low + (coarse_x_low / lowest_T);
-        int lm_x = lm_index % W_low;
-        int lm_y = lm_index / W_low;
+        auto templ_curr = this->detector->getTemplates("test", best_tid)[level_idx];
+        auto templ_prev = this->detector->getTemplates("test", prev_tid)[level_idx];
+        auto templ_next = this->detector->getTemplates("test", next_tid)[level_idx];
 
         cv::Point2d refined_location_prev, refined_location_curr, refined_location_next;
         float refined_score_prev, refined_score_curr, refined_score_next;
 
-        auto refine_location = [&](const line2Dup::Template &templ, cv::Point2d &refined_loc, float &refined_score)
+        auto refine_location_and_score =
+            [&](const line2Dup::Template &templ, cv::Point2d &refined_loc, float &refined_score)
         {
-            if (lm_x > 0 && lm_x < W_low - 1 && lm_y > 0 && lm_y < H_low - 1)
+            cv::Mat similarities2;
+            int numFeatures = static_cast<int>(templ.features.size());
+
+            if (numFeatures == 0)
             {
-                float raw_s_c = computeScoreAt(lowest_lm, templ, lowest_size, lowest_T, lm_index);
-                float raw_s_l = computeScoreAt(lowest_lm, templ, lowest_size, lowest_T, lm_index - 1);
-                float raw_s_r = computeScoreAt(lowest_lm, templ, lowest_size, lowest_T, lm_index + 1);
-                float raw_s_t = computeScoreAt(lowest_lm, templ, lowest_size, lowest_T, lm_index - W_low);
-                float raw_s_b = computeScoreAt(lowest_lm, templ, lowest_size, lowest_T, lm_index + W_low);
+                refined_loc = coarse_loc;
+                refined_score = 0;
+                return;
+            }
 
-                float norm_factor = 100.0f / (4.0f * templ.features.size());
-                float s_c = raw_s_c * norm_factor;
-                float s_l = raw_s_l * norm_factor;
-                float s_r = raw_s_r * norm_factor;
-                float s_t = raw_s_t * norm_factor;
-                float s_b = raw_s_b * norm_factor;
+            // These functions are from line2Dup.cpp, they compute similarity in a 16x16 neighborhood.
+            if (numFeatures < 64)
+            {
+                line2Dup::similarityLocal_64(lm_level[0], templ, similarities2, size, T, coarse_loc);
+                similarities2.convertTo(similarities2, CV_16U);
+            }
+            else if (numFeatures < 8192)
+            {
+                line2Dup::similarityLocal(lm_level[0], templ, similarities2, size, T, coarse_loc);
+            }
+            else
+            {
+                CV_Error(cv::Error::StsBadArg, "feature size too large");
+            }
 
-                double dx = 0.0, dy = 0.0;
+            // Find best local adjustment in the 16x16 map
+            float best_score_raw = 0;
+            cv::Point peak_loc(-1, -1);
+            cv::minMaxLoc(similarities2, nullptr, (double *)&best_score_raw, nullptr, &peak_loc);
+
+            if (peak_loc.x == -1)
+            {
+                refined_loc = coarse_loc;
+                refined_score = 0;
+                return;
+            }
+
+            float refined_peak_x = (float)peak_loc.x;
+            float refined_peak_y = (float)peak_loc.y;
+
+            // Quadratic interpolation for sub-pixel accuracy
+            if (peak_loc.x > 0 && peak_loc.x < similarities2.cols - 1 &&
+                peak_loc.y > 0 && peak_loc.y < similarities2.rows - 1)
+            {
+                float s_c = similarities2.at<ushort>(peak_loc);
+                float s_l = similarities2.at<ushort>(peak_loc.y, peak_loc.x - 1);
+                float s_r = similarities2.at<ushort>(peak_loc.y, peak_loc.x + 1);
+                float s_t = similarities2.at<ushort>(peak_loc.y - 1, peak_loc.x);
+                float s_b = similarities2.at<ushort>(peak_loc.y + 1, peak_loc.x);
 
                 float den_x = 2.0f * (s_l + s_r - 2.0f * s_c);
                 if (std::abs(den_x) > 1e-5f)
                 {
-                    dx = (s_l - s_r) / den_x;
-                    if (std::abs(dx) > 1.0)
-                        dx = 0.0;
+                    float dx = (s_l - s_r) / den_x;
+                    if (std::abs(dx) < 1.0f)
+                        refined_peak_x += dx;
                 }
 
                 float den_y = 2.0f * (s_t + s_b - 2.0f * s_c);
                 if (std::abs(den_y) > 1e-5f)
                 {
-                    dy = (s_t - s_b) / den_y;
-                    if (std::abs(dy) > 1.0)
-                        dy = 0.0;
+                    float dy = (s_t - s_b) / den_y;
+                    if (std::abs(dy) < 1.0f)
+                        refined_peak_y += dy;
                 }
+            }
 
-                refined_loc.x = x + dx * lowest_T * pyramid_scale;
-                refined_loc.y = y + dy * lowest_T * pyramid_scale;
+            // The 16x16 neighborhood is centered at `coarse_loc`. `peak_loc` is relative to
+            // the 16x16 window of template positions. Convert it back to image pixel coordinates.
+            int offset = T / 2 + (T % 2 - 1);
+            refined_loc.x = (double(coarse_loc.x) / T - 8.0 + refined_peak_x) * T + offset;
+            refined_loc.y = (double(coarse_loc.y) / T - 8.0 + refined_peak_y) * T + offset;
 
-                double a_x = (s_l + s_r - 2 * s_c) / 2.0;
-                double b_x = (s_r - s_l) / 2.0;
-                double score_x = a_x * dx * dx + b_x * dx + s_c;
+            // Also interpolate the score
+            float norm_factor = 100.0f / (4.0f * numFeatures);
+            float s_c_norm = similarities2.at<ushort>(peak_loc) * norm_factor;
 
-                double a_y = (s_t + s_b - 2 * s_c) / 2.0;
-                double b_y = (s_b - s_t) / 2.0;
-                double score_y = a_y * dy * dy + b_y * dy + s_c;
+            if (peak_loc.x > 0 && peak_loc.x < similarities2.cols - 1 &&
+                peak_loc.y > 0 && peak_loc.y < similarities2.rows - 1)
+            {
+                float s_l_norm = similarities2.at<ushort>(peak_loc.y, peak_loc.x - 1) * norm_factor;
+                float s_r_norm = similarities2.at<ushort>(peak_loc.y, peak_loc.x + 1) * norm_factor;
+                float s_t_norm = similarities2.at<ushort>(peak_loc.y - 1, peak_loc.x) * norm_factor;
+                float s_b_norm = similarities2.at<ushort>(peak_loc.y + 1, peak_loc.x) * norm_factor;
 
-                refined_score = std::max(s_c, (float)((score_x + score_y) / 2.0));
+                double dx = refined_peak_x - peak_loc.x;
+                double dy = refined_peak_y - peak_loc.y;
+
+                double a_x = (s_l_norm + s_r_norm - 2 * s_c_norm) / 2.0;
+                double b_x = (s_r_norm - s_l_norm) / 2.0;
+                double score_x = a_x * dx * dx + b_x * dx + s_c_norm;
+
+                double a_y = (s_t_norm + s_b_norm - 2 * s_c_norm) / 2.0;
+                double b_y = (s_b_norm - s_t_norm) / 2.0;
+                double score_y = a_y * dy * dy + b_y * dy + s_c_norm;
+
+                refined_score = std::max(s_c_norm, (float)((score_x + score_y) / 2.0));
             }
             else
             {
-                refined_loc = cv::Point2d(x, y);
-                float raw_s_c = computeScoreAt(lowest_lm, templ, lowest_size, lowest_T, lm_index);
-                refined_score = raw_s_c * 100.0f / (4.0f * templ.features.size());
+                refined_score = s_c_norm;
             }
         };
 
-        refine_location(templ_prev, refined_location_prev, refined_score_prev);
-        refine_location(templ_curr, refined_location_curr, refined_score_curr);
-        refined_score_curr = std::max(match.similarity, refined_score_curr);
-        refine_location(templ_next, refined_location_next, refined_score_next);
+        refine_location_and_score(templ_prev, refined_location_prev, refined_score_prev);
+        refine_location_and_score(templ_curr, refined_location_curr, refined_score_curr);
+        refine_location_and_score(templ_next, refined_location_next, refined_score_next);
 
         double a_prev = this->infos_have_templ[prev_tid].angle;
         double a_curr = this->infos_have_templ[best_tid].angle;
         double a_next = this->infos_have_templ[next_tid].angle;
 
-        if (a_curr < this->angleStep && a_prev > 180)
-            a_prev -= 360;
-        if (a_curr > 360 - this->angleStep && a_next < 180)
-            a_next += 360;
+        // unwrap angles to be continuous for interpolation
+        if (a_prev - a_curr > 180.0)
+            a_prev -= 360.0;
+        if (a_next - a_curr < -180.0)
+            a_next += 360.0;
 
         double y1 = refined_score_prev, y2 = refined_score_curr, y3 = refined_score_next;
         double den = 2 * (y1 + y3 - 2 * y2);
@@ -524,7 +527,7 @@ void ShapeMatcher::search(cv::Mat *image, int refinementLevel, bool useFusion, c
         double final_score = y2;
         cv::Point2d final_location = refined_location_curr;
 
-        if (std::abs(den) > 1e-5)
+        if (std::abs(den) > 1e-5 && den < 0) // Check for a peak (den must be negative for parabola opening downwards)
         {
             double angle_offset = (y1 - y3) * this->angleStep / den;
             if (std::abs(angle_offset) < this->angleStep)
@@ -550,6 +553,12 @@ void ShapeMatcher::search(cv::Mat *image, int refinementLevel, bool useFusion, c
             }
         }
 
+        // The original logic `*retPoint = final_location` was incorrect because `final_location`
+        // represents the top-left corner of the template's feature bounding box, not its center.
+        // The following calculation, similar to the 'None' refinement case, transforms this
+        // top-left coordinate to the template's center coordinate.
+        final_location.x = final_location.x - templ_curr.tl_x + train_img_half_width;
+        final_location.y = final_location.y - templ_curr.tl_y + train_img_half_width;
         *retPoint = final_location;
 
         while (refined_angle >= 360.0)

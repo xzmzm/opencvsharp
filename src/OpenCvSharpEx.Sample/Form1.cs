@@ -19,7 +19,7 @@ namespace OpenCvSharpEx.Sample
         public Form1()
         {
             this.InitializeComponent();
-            this.shapeMatcher = new ShapeMatcher() { MinAngle = 0, MaxAngle = 360, UseFusion = true, Refinement = RefinementMethod.Quadratic };
+            this.shapeMatcher = new ShapeMatcher() { MinAngle = 0, MaxAngle = 360, UseFusion = false, Refinement = RefinementMethod.FastQuadratic };
             this.propertyGrid1.SelectedObject = this.shapeMatcher;
         }
 
@@ -139,6 +139,7 @@ namespace OpenCvSharpEx.Sample
                     this.Log($"  Score: {this.lastSearchResult.Score:F2}");
                     this.Log($"  Angle: {this.lastSearchResult.Angle:F2}°");
                     this.Log($"  Location: ({this.lastSearchResult.Location.X:F2}, {this.lastSearchResult.Location.Y:F2})");
+                    this.Log($"  Template ID: {this.lastSearchResult.TemplateID}");
 
                     this.DrawSearchResult();
                 }

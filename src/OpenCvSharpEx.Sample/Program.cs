@@ -19,7 +19,7 @@ namespace OpenCvSharpEx.Sample
             var additionalPathDirs = new[]
 {
                 @"Q:\src\vision\opencvsharp\src\Release\x64",
-                @"D:\src\vision\opencvsharp\src\Release\x64"
+                @"D:\src\vision\opencvsharp\src\Debug1\x64"
             };
 
             void AddDirectoriesToPath(string[] additionalPathDirs1)
