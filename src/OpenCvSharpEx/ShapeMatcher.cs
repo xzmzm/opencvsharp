@@ -22,7 +22,9 @@ namespace OpenCvSharpEx
         /// <summary>A fast variant of quadratic refinement that interpolates angle from neighboring template scores. Much faster than standard Quadratic.</summary>
         FastQuadratic,
         /// <summary>Matches at the coarsest pyramid level without any refinement steps up the pyramid. This is the fastest method but offers the lowest accuracy.</summary>
-        Coarse
+        Coarse,
+        /// <summary>Uses quadratic interpolation on a 3D (X, Y, Angle) score space for sub-pixel and sub-angle accuracy. Based on the method from RotatedPatternMatcher.</summary>
+        SubPixel
     }
     public class ShapeMatcher : IDisposable
     {
