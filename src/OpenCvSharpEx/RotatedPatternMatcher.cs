@@ -51,6 +51,12 @@ namespace OpenCvSharpEx
         } = 0.0;
         public void Teach(Mat pattern)
         {
+            if (this.rotatedPatternMatcherObj != IntPtr.Zero)
+            {
+                NativeMethods.rotatedPatternMatcher_RotatedPatternMatcher_delete(this.rotatedPatternMatcherObj);
+                this.rotatedPatternMatcherObj = IntPtr.Zero;
+            }
+
             var ret = NativeMethods.rotatedPatternMatcher_RotatedPatternMatcher_new(pattern.CvPtr, this.MinAngle, this.MaxAngle, this.AngleStep, this.MinReducedArea, out this.rotatedPatternMatcherObj);
         }
         public void PreprocessPattern()

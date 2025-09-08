@@ -20,7 +20,9 @@ namespace OpenCvSharpEx
         /// <summary>Uses Iterative Closest Point (ICP) algorithm with an edge distance map. Can be more robust than K-D tree for noisy images.</summary>
         ICPEdge,
         /// <summary>A fast variant of quadratic refinement that interpolates angle from neighboring template scores. Much faster than standard Quadratic.</summary>
-        FastQuadratic
+        FastQuadratic,
+        /// <summary>Matches at the coarsest pyramid level without any refinement steps up the pyramid. This is the fastest method but offers the lowest accuracy.</summary>
+        Coarse
     }
     public class ShapeMatcher : IDisposable
     {

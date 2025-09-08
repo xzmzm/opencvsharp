@@ -137,17 +137,41 @@ void ShapeMatcher::search(cv::Mat *image, int refinementLevel, bool useFusion, c
     // cropping internally. This led to coordinate system errors. The fix is to use the same
     // padding logic for both, ensuring dimensions are a multiple of 16 (lcm of T levels for {4, 8}),
     // and remove the internal cropping in the fusion path.
-    int stride = 16;
+    auto gcd = [](int a, int b)
+    {
+        while (b)
+        {
+            a %= b;
+            std::swap(a, b);
+        }
+        return a;
+    };
+
+    auto lcm = [&](int a, int b)
+    {
+        if (a == 0 || b == 0) return 0;
+        return std::abs(a * b) / gcd(a, b);
+    };
+
+    int stride = 16; // Default for 2 pyramid levels.
+    if (this->detector && !this->detector->T_at_level.empty()) {
+        stride = this->detector->T_at_level[0];
+        for (size_t i = 1; i < this->detector->T_at_level.size(); ++i) {
+            stride = lcm(stride, this->detector->T_at_level[i] * (1 << i));
+        }
+    }
     int n = (image->rows + 2 * ImagePadding + stride - 1) / stride;
     int m = (image->cols + 2 * ImagePadding + stride - 1) / stride;
     padded_img = cv::Mat(stride * n, stride * m, img1.type(), cv::Scalar::all(0));
     img1.copyTo(padded_img(cv::Rect(ImagePadding, ImagePadding, img1.cols, img1.rows)));
     assert(padded_img.isContinuous());
 
+    bool coarse_match = (refinementLevel == 5);
+
     if (useFusion)
-        matches = this->detector->match_fusion(padded_img, *score, ids);
+        matches = this->detector->match_fusion(padded_img, *score, ids, cv::Mat(), coarse_match);
     else
-        matches = this->detector->match(padded_img, *score, ids);
+        matches = this->detector->match(padded_img, *score, ids, cv::Mat(), coarse_match);
     // timer.out();
     if (matches.empty())
     {
@@ -193,6 +217,7 @@ void ShapeMatcher::search(cv::Mat *image, int refinementLevel, bool useFusion, c
     switch (refinementLevel)
     {
     case 0: // None
+    case 5: // Coarse
         *retPoint = cv::Point2d(x, y);
         *angle = -init_angle; // RotatedRect uses clockwise angle, while init_angle is counter-clockwise.
         *score = match.similarity;

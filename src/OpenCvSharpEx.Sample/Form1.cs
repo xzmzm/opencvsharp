@@ -12,15 +12,20 @@ namespace OpenCvSharpEx.Sample
     public partial class Form1 : Form
     {
         private ShapeMatcher shapeMatcher;
+        private RotatedPatternMatcher rotatedPatternMatcher;
         private Mat patternMat;
         private Mat searchImageMat;
         private ShapeMatcherResults lastSearchResult;
+        private RotationPatternMatcherResults[] lastRotatedSearchResult;
 
         public Form1()
         {
             this.InitializeComponent();
             this.shapeMatcher = new ShapeMatcher() { MinAngle = 0, MaxAngle = 360, UseFusion = false, Refinement = RefinementMethod.FastQuadratic };
-            this.propertyGrid1.SelectedObject = this.shapeMatcher;
+            this.propertyGridShapeMatcher.SelectedObject = this.shapeMatcher;
+
+            this.rotatedPatternMatcher = new RotatedPatternMatcher();
+            this.propertyGridRotatedPatternMatcher.SelectedObject = this.rotatedPatternMatcher;
         }
 
         private void OnLoadPatternClick(object sender, EventArgs e)
@@ -54,20 +59,39 @@ namespace OpenCvSharpEx.Sample
                 return;
             }
 
-            using (var gray = new Mat())
+            if (this.tabControl1.SelectedIndex == 0) // Shape Matcher
             {
-                if (this.patternMat.Channels() > 1)
-                    Cv2.CvtColor(this.patternMat, gray, ColorConversionCodes.BGR2GRAY);
-                else
-                    this.patternMat.CopyTo(gray);
+                using (var gray = new Mat())
+                {
+                    if (this.patternMat.Channels() > 1)
+                        Cv2.CvtColor(this.patternMat, gray, ColorConversionCodes.BGR2GRAY);
+                    else
+                        this.patternMat.CopyTo(gray);
 
-                this.Log("Teaching pattern...");
-                var sw = Stopwatch.StartNew();
-                this.shapeMatcher.Teach(gray);
-                sw.Stop();
-                this.Log($"Teaching complete in {sw.ElapsedMilliseconds} ms.");
+                    this.Log("Teaching pattern for Shape Matcher...");
+                    var sw = Stopwatch.StartNew();
+                    this.shapeMatcher.Teach(gray);
+                    sw.Stop();
+                    this.Log($"Teaching complete in {sw.ElapsedMilliseconds} ms.");
 
-                this.DrawFeatures();
+                    this.DrawFeatures();
+                }
+            }
+            else // Rotated Pattern Matcher
+            {
+                using (var gray = new Mat())
+                {
+                    if (this.patternMat.Channels() > 1)
+                        Cv2.CvtColor(this.patternMat, gray, ColorConversionCodes.BGR2GRAY);
+                    else
+                        this.patternMat.CopyTo(gray);
+
+                    this.Log("Teaching pattern for Rotated Pattern Matcher...");
+                    var sw = Stopwatch.StartNew();
+                    this.rotatedPatternMatcher.Teach(gray);
+                    sw.Stop();
+                    this.Log($"Teaching complete in {sw.ElapsedMilliseconds} ms.");
+                }
             }
         }
 
@@ -90,6 +114,7 @@ namespace OpenCvSharpEx.Sample
                     this.pictureBox1.Image?.Dispose();
                     this.pictureBox1.Image = this.searchImageMat.ToBitmap();
                     this.lastSearchResult = null;
+                    this.lastRotatedSearchResult = null;
                     this.Log($"Search image '{ofd.FileName}' loaded.");
                 }
             }
@@ -97,7 +122,7 @@ namespace OpenCvSharpEx.Sample
 
         private void OnSearchClick(object sender, EventArgs e)
         {
-            if (this.shapeMatcher == null)
+            if (this.tabControl1.SelectedIndex == 0 && this.shapeMatcher == null)
             {
                 MessageBox.Show("Matcher not initialized. Please teach a pattern first.");
                 return;
@@ -117,37 +142,69 @@ namespace OpenCvSharpEx.Sample
 
                 this.Log("Searching...");
                 var sw = Stopwatch.StartNew();
-                try
+                if (this.tabControl1.SelectedIndex == 0) // Shape Matcher
                 {
-                    this.lastSearchResult = this.shapeMatcher.Search(gray);
-                }
-                catch (OpenCvSharpException ex)
-                {
-                    this.Log($"Error during search: {ex.Message}");
-                    if (ex.Message.Contains("No pattern is taught yet"))
+                    try
                     {
-                        MessageBox.Show("Please teach a pattern before searching.");
+                        this.lastSearchResult = this.shapeMatcher.Search(gray);
+                        sw.Stop();
+
+                        if (this.lastSearchResult != null && this.lastSearchResult.Score > 0)
+                        {
+                            this.Log($"Search complete in {sw.ElapsedMilliseconds} ms.");
+                            this.Log($"Result:");
+                            this.Log($"  Score: {this.lastSearchResult.Score:F2}");
+                            this.Log($"  Angle: {this.lastSearchResult.Angle:F2}°");
+                            this.Log($"  Location: ({this.lastSearchResult.Location.X:F2}, {this.lastSearchResult.Location.Y:F2})");
+                            this.Log($"  Template ID: {this.lastSearchResult.TemplateID}");
+
+                            this.DrawSearchResult();
+                        }
+                        else
+                        {
+                            this.Log($"Search complete in {sw.ElapsedMilliseconds} ms. No match found.");
+                            this.pictureBox1.Image?.Dispose();
+                            this.pictureBox1.Image = this.searchImageMat.ToBitmap();
+                        }
                     }
-                    return;
+                    catch (OpenCvSharpException ex)
+                    {
+                        this.Log($"Error during search: {ex.Message}");
+                        if (ex.Message.Contains("No pattern is taught yet"))
+                        {
+                            MessageBox.Show("Please teach a pattern before searching.");
+                        }
+                        return;
+                    }
                 }
-                sw.Stop();
-
-                if (this.lastSearchResult != null && this.lastSearchResult.Score > 0)
+                else // Rotated Pattern Matcher
                 {
-                    this.Log($"Search complete in {sw.ElapsedMilliseconds} ms.");
-                    this.Log($"Result:");
-                    this.Log($"  Score: {this.lastSearchResult.Score:F2}");
-                    this.Log($"  Angle: {this.lastSearchResult.Angle:F2}°");
-                    this.Log($"  Location: ({this.lastSearchResult.Location.X:F2}, {this.lastSearchResult.Location.Y:F2})");
-                    this.Log($"  Template ID: {this.lastSearchResult.TemplateID}");
+                    try
+                    {
+                        this.lastRotatedSearchResult = this.rotatedPatternMatcher.Search(gray);
+                        sw.Stop();
 
-                    this.DrawSearchResult();
-                }
-                else
-                {
-                    this.Log($"Search complete in {sw.ElapsedMilliseconds} ms. No match found.");
-                    this.pictureBox1.Image?.Dispose();
-                    this.pictureBox1.Image = this.searchImageMat.ToBitmap();
+                        if (this.lastRotatedSearchResult != null && this.lastRotatedSearchResult.Length > 0)
+                        {
+                            this.Log($"Search complete in {sw.ElapsedMilliseconds} ms. Found {this.lastRotatedSearchResult.Length} matches.");
+                            for (int i = 0; i < this.lastRotatedSearchResult.Length; i++)
+                            {
+                                var result = this.lastRotatedSearchResult[i];
+                                this.Log($"  Match {i + 1}: Score={result.Score:F2}, Angle={result.Angle:F2}°, Location=({result.Location.X:F2}, {result.Location.Y:F2})");
+                            }
+                            this.DrawSearchResult();
+                        }
+                        else
+                        {
+                            this.Log($"Search complete in {sw.ElapsedMilliseconds} ms. No match found.");
+                            this.pictureBox1.Image?.Dispose();
+                            this.pictureBox1.Image = this.searchImageMat.ToBitmap();
+                        }
+                    }
+                    catch (OpenCvSharpException ex)
+                    {
+                        this.Log($"Error during search: {ex.Message}");
+                    }
                 }
             }
         }
@@ -185,7 +242,7 @@ namespace OpenCvSharpEx.Sample
 
         private void DrawSearchResult()
         {
-            if (this.searchImageMat == null || this.lastSearchResult == null) return;
+            if (this.searchImageMat == null) return;
 
             using (var resultMat = new Mat())
             {
@@ -194,11 +251,25 @@ namespace OpenCvSharpEx.Sample
                 else
                     this.searchImageMat.CopyTo(resultMat);
 
-                var points = this.lastSearchResult.RotatedBounds.Points().Select(p => new OpenCvSharp.Point(p.X, p.Y)).ToArray();
-                Cv2.Polylines(resultMat, new[] { points }, true, Scalar.LimeGreen, 2);
+                if (this.tabControl1.SelectedIndex == 0 && this.lastSearchResult != null) // Shape Matcher
+                {
+                    var points = this.lastSearchResult.RotatedBounds.Points().Select(p => new OpenCvSharp.Point(p.X, p.Y)).ToArray();
+                    Cv2.Polylines(resultMat, new[] { points }, true, Scalar.LimeGreen, 2);
 
-                var center = this.lastSearchResult.Location;
-                Cv2.DrawMarker(resultMat, new OpenCvSharp.Point(center.X, center.Y), Scalar.Red, MarkerTypes.Cross, 10, 2);
+                    var center = this.lastSearchResult.Location;
+                    Cv2.DrawMarker(resultMat, new OpenCvSharp.Point(center.X, center.Y), Scalar.Red, MarkerTypes.Cross, 10, 2);
+                }
+                else if (this.tabControl1.SelectedIndex == 1 && this.lastRotatedSearchResult != null) // Rotated Pattern Matcher
+                {
+                    foreach (var result in this.lastRotatedSearchResult)
+                    {
+                        var points = result.RotatedBounds.Points().Select(p => new OpenCvSharp.Point(p.X, p.Y)).ToArray();
+                        Cv2.Polylines(resultMat, new[] { points }, true, Scalar.LimeGreen, 2);
+
+                        var center = result.Location;
+                        Cv2.DrawMarker(resultMat, new OpenCvSharp.Point(center.X, center.Y), Scalar.Red, MarkerTypes.Cross, 10, 2);
+                    }
+                }
 
                 this.pictureBox1.Image?.Dispose();
                 this.pictureBox1.Image = resultMat.ToBitmap();
@@ -209,6 +280,7 @@ namespace OpenCvSharpEx.Sample
         {
             base.OnFormClosing(e);
             this.shapeMatcher?.Dispose();
+            this.rotatedPatternMatcher?.Dispose();
             this.patternMat?.Dispose();
             this.searchImageMat?.Dispose();
             this.pictureBox1.Image?.Dispose();
@@ -219,6 +291,14 @@ namespace OpenCvSharpEx.Sample
             if (this.shapeMatcher != null)
             {
                 this.Log($"Matcher property changed: {e.ChangedItem.Label} = {e.ChangedItem.Value}");
+            }
+        }
+
+        private void OnRotatedPatternMatcherPropertyValueChanged(object s, PropertyValueChangedEventArgs e)
+        {
+            if (this.rotatedPatternMatcher != null)
+            {
+                this.Log($"Rotated Pattern Matcher property changed: {e.ChangedItem.Label} = {e.ChangedItem.Value}");
             }
         }
     }

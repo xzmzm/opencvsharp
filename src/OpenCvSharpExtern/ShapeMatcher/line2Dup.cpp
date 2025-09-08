@@ -1098,7 +1098,7 @@ namespace line2Dup
     }
 
     std::vector<Match> Detector::match(Mat source, float threshold,
-                                       const std::vector<std::string> &class_ids, const Mat mask)
+                                       const std::vector<std::string> &class_ids, const Mat mask, bool coarse)
     {
 #ifdef DEBUG_MATCH_TIME
         Timer timer;
@@ -1156,7 +1156,7 @@ namespace line2Dup
             // Match all templates
             TemplatesMap::const_iterator it = class_templates.begin(), itend = class_templates.end();
             for (; it != itend; ++it)
-                matchClass(this->last_lm_pyramid, this->last_sizes, threshold, matches, it->first, it->second);
+                matchClass(this->last_lm_pyramid, this->last_sizes, threshold, matches, it->first, it->second, coarse);
         }
         else
         {
@@ -1165,7 +1165,7 @@ namespace line2Dup
             {
                 TemplatesMap::const_iterator it = class_templates.find(class_ids[i]);
                 if (it != class_templates.end())
-                    matchClass(this->last_lm_pyramid, this->last_sizes, threshold, matches, it->first, it->second);
+                    matchClass(this->last_lm_pyramid, this->last_sizes, threshold, matches, it->first, it->second, coarse);
             }
         }
 
@@ -1201,7 +1201,7 @@ namespace line2Dup
         }
         return cur_res;
     }
-    std::vector<Match> Detector::match_fusion(cv::Mat source, float threshold, const std::vector<std::string> &class_ids, const cv::Mat mask)
+    std::vector<Match> Detector::match_fusion(cv::Mat source, float threshold, const std::vector<std::string> &class_ids, const cv::Mat mask, bool coarse)
     {
         Timer timer;
         std::vector<Match> matches;
@@ -1293,7 +1293,7 @@ namespace line2Dup
             // Match all templates
             TemplatesMap::const_iterator it = class_templates.begin(), itend = class_templates.end();
             for (; it != itend; ++it)
-                matchClass(this->last_lm_pyramid, this->last_sizes, threshold, matches, it->first, it->second);
+                matchClass(this->last_lm_pyramid, this->last_sizes, threshold, matches, it->first, it->second, coarse);
         }
         else
         {
@@ -1302,7 +1302,7 @@ namespace line2Dup
             {
                 TemplatesMap::const_iterator it = class_templates.find(class_ids[i]);
                 if (it != class_templates.end())
-                    matchClass(this->last_lm_pyramid, this->last_sizes, threshold, matches, it->first, it->second);
+                    matchClass(this->last_lm_pyramid, this->last_sizes, threshold, matches, it->first, it->second, coarse);
             }
         }
 
@@ -1327,7 +1327,7 @@ namespace line2Dup
                               const std::vector<Size> &sizes,
                               float threshold, std::vector<Match> &matches,
                               const std::string &class_id,
-                              const std::vector<TemplatePyramid> &template_pyramids)
+                              const std::vector<TemplatePyramid> &template_pyramids, bool coarse)
     {
         //#pragma omp declare reduction \
   //  (omp_insert: std::vector<Match>: omp_out.insert(omp_out.end(), omp_in.begin(), omp_in.end()))
@@ -1387,84 +1387,99 @@ namespace line2Dup
                 }
             }
 
-            // Locally refine each match by marching up the pyramid
-            for (int l = pyramid_levels - 2; l >= 0; --l)
+            if (coarse)
             {
-                const std::vector<LinearMemories> &lms = lm_pyramid[l];
-                int T = T_at_level[l];
-                int start = static_cast<int>(l);
-                Size size = sizes[l];
-                int border = 8 * T;
-                int offset = T / 2 + (T % 2 - 1);
-                int max_x = size.width - tp[start].width - border;
-                int max_y = size.height - tp[start].height - border;
-
-                Mat similarities2;
-                for (int m = 0; m < (int)candidates.size(); ++m)
+                if (pyramid_levels > 1)
                 {
-                    Match &match2 = candidates[m];
-                    int x = match2.x * 2 + 1; /// @todo Support other pyramid distance
-                    int y = match2.y * 2 + 1;
-
-                    // Require 8 (reduced) row/cols to the up/left
-                    x = std::max(x, border);
-                    y = std::max(y, border);
-
-                    // Require 8 (reduced) row/cols to the down/left, plus the template size
-                    x = std::min(x, max_x);
-                    y = std::min(y, max_y);
-
-                    // Compute local similarity maps for each ColorGradient
-                    int numFeatures = 0;
-
+                    int scale_factor = 1 << (pyramid_levels - 1);
+                    for (auto &match : candidates)
                     {
-                        const Template &templ = tp[start];
-                        numFeatures += static_cast<int>(templ.features.size());
-
-                        if (templ.features.size() < 64)
-                        {
-                            similarityLocal_64(lms[0], templ, similarities2, size, T, Point(x, y));
-                            similarities2.convertTo(similarities2, CV_16U);
-                        }
-                        else if (templ.features.size() < 8192)
-                        {
-                            similarityLocal(lms[0], templ, similarities2, size, T, Point(x, y));
-                        }
-                        else
-                        {
-                            CV_Error(Error::StsBadArg, "feature size too large");
-                        }
+                        match.x *= scale_factor;
+                        match.y *= scale_factor;
                     }
+                }
+            }
+            else
+            {
+                // Locally refine each match by marching up the pyramid
+                for (int l = pyramid_levels - 2; l >= 0; --l)
+                {
+                    const std::vector<LinearMemories> &lms = lm_pyramid[l];
+                    int T = T_at_level[l];
+                    int start = static_cast<int>(l);
+                    Size size = sizes[l];
+                    int border = 8 * T;
+                    int offset = T / 2 + (T % 2 - 1);
+                    int max_x = size.width - tp[start].width - border;
+                    int max_y = size.height - tp[start].height - border;
 
-                    // Find best local adjustment
-                    float best_score = 0;
-                    int best_r = -1, best_c = -1;
-                    for (int r = 0; r < similarities2.rows; ++r)
+                    Mat similarities2;
+                    for (int m = 0; m < (int)candidates.size(); ++m)
                     {
-                        ushort *row = similarities2.ptr<ushort>(r);
-                        for (int c = 0; c < similarities2.cols; ++c)
-                        {
-                            int score_int = row[c];
-                            float score = (score_int * 100.f) / (4 * numFeatures);
+                        Match &match2 = candidates[m];
+                        int x = match2.x * 2 + 1; /// @todo Support other pyramid distance
+                        int y = match2.y * 2 + 1;
 
-                            if (score > best_score)
+                        // Require 8 (reduced) row/cols to the up/left
+                        x = std::max(x, border);
+                        y = std::max(y, border);
+
+                        // Require 8 (reduced) row/cols to the down/left, plus the template size
+                        x = std::min(x, max_x);
+                        y = std::min(y, max_y);
+
+                        // Compute local similarity maps for each ColorGradient
+                        int numFeatures = 0;
+
+                        {
+                            const Template &templ = tp[start];
+                            numFeatures += static_cast<int>(templ.features.size());
+
+                            if (templ.features.size() < 64)
                             {
-                                best_score = score;
-                                best_r = r;
-                                best_c = c;
+                                similarityLocal_64(lms[0], templ, similarities2, size, T, Point(x, y));
+                                similarities2.convertTo(similarities2, CV_16U);
+                            }
+                            else if (templ.features.size() < 8192)
+                            {
+                                similarityLocal(lms[0], templ, similarities2, size, T, Point(x, y));
+                            }
+                            else
+                            {
+                                CV_Error(Error::StsBadArg, "feature size too large");
                             }
                         }
-                    }
-                    // Update current match
-                    match2.similarity = best_score;
-                    match2.x = (x / T - 8 + best_c) * T + offset;
-                    match2.y = (y / T - 8 + best_r) * T + offset;
-                }
 
-                // Filter out any matches that drop below the similarity threshold
-                std::vector<Match>::iterator new_end = std::remove_if(candidates.begin(), candidates.end(),
-                                                                      MatchPredicate(threshold));
-                candidates.erase(new_end, candidates.end());
+                        // Find best local adjustment
+                        float best_score = 0;
+                        int best_r = -1, best_c = -1;
+                        for (int r = 0; r < similarities2.rows; ++r)
+                        {
+                            ushort *row = similarities2.ptr<ushort>(r);
+                            for (int c = 0; c < similarities2.cols; ++c)
+                            {
+                                int score_int = row[c];
+                                float score = (score_int * 100.f) / (4 * numFeatures);
+
+                                if (score > best_score)
+                                {
+                                    best_score = score;
+                                    best_r = r;
+                                    best_c = c;
+                                }
+                            }
+                        }
+                        // Update current match
+                        match2.similarity = best_score;
+                        match2.x = (x / T - 8 + best_c) * T + offset;
+                        match2.y = (y / T - 8 + best_r) * T + offset;
+                    }
+
+                    // Filter out any matches that drop below the similarity threshold
+                    std::vector<Match>::iterator new_end = std::remove_if(candidates.begin(), candidates.end(),
+                                                                          MatchPredicate(threshold));
+                    candidates.erase(new_end, candidates.end());
+                }
             }
 #pragma omp critical
             {

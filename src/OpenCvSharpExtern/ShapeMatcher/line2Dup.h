@@ -153,8 +153,8 @@ namespace line2Dup
         Detector(std::vector<int> T);
         Detector(int num_features, std::vector<int> T, float weak_thresh = 30.0f, float strong_thresh = 60.0f);
 
-        std::vector<Match> match(cv::Mat sources, float threshold, const std::vector<std::string> &class_ids = std::vector<std::string>(), const cv::Mat masks = cv::Mat());
-        std::vector<Match> match_fusion(cv::Mat source, float threshold, const std::vector<std::string> &class_ids = std::vector<std::string>(), const cv::Mat mask = cv::Mat());
+        std::vector<Match> match(cv::Mat sources, float threshold, const std::vector<std::string> &class_ids = std::vector<std::string>(), const cv::Mat masks = cv::Mat(), bool coarse = false);
+        std::vector<Match> match_fusion(cv::Mat source, float threshold, const std::vector<std::string> &class_ids = std::vector<std::string>(), const cv::Mat mask = cv::Mat(), bool coarse = false);
 
         int addTemplate(const cv::Mat sources, const std::string &class_id,
                         const cv::Mat &object_mask, int num_features);
@@ -208,7 +208,7 @@ namespace line2Dup
                         const std::vector<cv::Size> &sizes,
                         float threshold, std::vector<Match> &matches,
                         const std::string &class_id,
-                        const std::vector<TemplatePyramid> &template_pyramids);
+                        const std::vector<TemplatePyramid> &template_pyramids, bool coarse = false);
     };
 
     void similarityLocal(const std::vector<cv::Mat>& linear_memories, const Template& templ,

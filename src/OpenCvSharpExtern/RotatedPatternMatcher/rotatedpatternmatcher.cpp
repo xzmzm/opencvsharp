@@ -91,19 +91,6 @@ Point2f ptRotatePt2f(Point2f ptInput, Point2f ptOrg, double dAngle)
 }
 Size GetBestRotationSize(Size sizeSrc, Size sizeDst, double dRAngle)
 {
-    double dRAngle_radian = dRAngle * D2R;
-    Point ptLT(0, 0), ptLB(0, sizeSrc.height - 1), ptRB(sizeSrc.width - 1, sizeSrc.height - 1), ptRT(sizeSrc.width - 1, 0);
-    Point2f ptCenter((sizeSrc.width - 1) / 2.0f, (sizeSrc.height - 1) / 2.0f);
-    Point2f ptLT_R = ptRotatePt2f(Point2f(ptLT), ptCenter, dRAngle_radian);
-    Point2f ptLB_R = ptRotatePt2f(Point2f(ptLB), ptCenter, dRAngle_radian);
-    Point2f ptRB_R = ptRotatePt2f(Point2f(ptRB), ptCenter, dRAngle_radian);
-    Point2f ptRT_R = ptRotatePt2f(Point2f(ptRT), ptCenter, dRAngle_radian);
-
-    float fTopY = max(max(ptLT_R.y, ptLB_R.y), max(ptRB_R.y, ptRT_R.y));
-    float fBottomY = min(min(ptLT_R.y, ptLB_R.y), min(ptRB_R.y, ptRT_R.y));
-    float fRightX = max(max(ptLT_R.x, ptLB_R.x), max(ptRB_R.x, ptRT_R.x));
-    float fLeftX = min(min(ptLT_R.x, ptLB_R.x), min(ptRB_R.x, ptRT_R.x));
-
     if (dRAngle > 360)
         dRAngle -= 360;
     else if (dRAngle < 0)
@@ -118,40 +105,20 @@ Size GetBestRotationSize(Size sizeSrc, Size sizeDst, double dRAngle)
         return sizeSrc;
     }
 
-    double dAngle = dRAngle;
+    double dRAngle_radian = dRAngle * D2R;
+    Point ptLT(0, 0), ptLB(0, sizeSrc.height - 1), ptRB(sizeSrc.width - 1, sizeSrc.height - 1), ptRT(sizeSrc.width - 1, 0);
+    Point2f ptCenter((sizeSrc.width - 1) / 2.0f, (sizeSrc.height - 1) / 2.0f);
+    Point2f ptLT_R = ptRotatePt2f(Point2f(ptLT), ptCenter, dRAngle_radian);
+    Point2f ptLB_R = ptRotatePt2f(Point2f(ptLB), ptCenter, dRAngle_radian);
+    Point2f ptRB_R = ptRotatePt2f(Point2f(ptRB), ptCenter, dRAngle_radian);
+    Point2f ptRT_R = ptRotatePt2f(Point2f(ptRT), ptCenter, dRAngle_radian);
 
-    if (dAngle > 0 && dAngle < 90)
-    {
-        ;
-    }
-    else if (dAngle > 90 && dAngle < 180)
-    {
-        dAngle -= 90;
-    }
-    else if (dAngle > 180 && dAngle < 270)
-    {
-        dAngle -= 180;
-    }
-    else if (dAngle > 270 && dAngle < 360)
-    {
-        dAngle -= 270;
-    }
+    float fTopY = max(max(ptLT_R.y, ptLB_R.y), max(ptRB_R.y, ptRT_R.y));
+    float fBottomY = min(min(ptLT_R.y, ptLB_R.y), min(ptRB_R.y, ptRT_R.y));
+    float fRightX = max(max(ptLT_R.x, ptLB_R.x), max(ptRB_R.x, ptRT_R.x));
+    float fLeftX = min(min(ptLT_R.x, ptLB_R.x), min(ptRB_R.x, ptRT_R.x));
 
-    float fH1 = sizeDst.width * sin(dAngle * D2R) * cos(dAngle * D2R);
-    float fH2 = sizeDst.height * sin(dAngle * D2R) * cos(dAngle * D2R);
-
-    int iHalfHeight = (int)ceil(fTopY - ptCenter.y - fH1);
-    int iHalfWidth = (int)ceil(fRightX - ptCenter.x - fH2);
-
-    Size sizeRet(iHalfWidth * 2, iHalfHeight * 2);
-
-    bool bWrongSize = (sizeDst.width < sizeRet.width && sizeDst.height > sizeRet.height)
-        || (sizeDst.width > sizeRet.width && sizeDst.height < sizeRet.height
-            || sizeDst.area() > sizeRet.area());
-    if (bWrongSize)
-        sizeRet = Size(int(fRightX - fLeftX + 0.5), int(fTopY - fBottomY + 0.5));
-
-    return sizeRet;
+    return Size(int(fRightX - fLeftX + 0.5), int(fTopY - fBottomY + 0.5));
 }
 void FilterWithScore(vector<s_MatchParameter>* vec, double dScore)
 {
@@ -497,6 +464,12 @@ void CCOEFF_Denominator(cv::Mat& matSrc, s_TemplData* pTemplData, cv::Mat& matRe
 
 void MatchTemplate(cv::Mat& matSrc, s_TemplData* pTemplData, cv::Mat& matResult, int iLayer, bool bUseSIMD)
 {
+    if (matSrc.rows < pTemplData->vecPyramid[iLayer].rows || matSrc.cols < pTemplData->vecPyramid[iLayer].cols)
+    {
+        matResult.release();
+        return;
+    }
+
     if (true) // m_ckSIMD.GetCheck () && bUseSIMD)
     {
         //double d1 = clock();
@@ -609,9 +582,7 @@ std::vector<RotationPatternMatcherResults> RotatedPatternMatcher::search(cv::Mat
     std::vector<RotationPatternMatcherResults> results;
 	if (m_matSrc.empty () || m_matDst.empty ())
 		return results;
-	if ((m_matDst.cols < m_matSrc.cols && m_matDst.rows > m_matSrc.rows) || (m_matDst.cols > m_matSrc.cols && m_matDst.rows < m_matSrc.rows))
-		return results;
-	if (m_matDst.size ().area () > m_matSrc.size ().area ())
+	if (m_matDst.cols > m_matSrc.cols || m_matDst.rows > m_matSrc.rows)
 		return results;
 	if (!m_TemplData.bIsPatternLearned)
 		return results;
@@ -619,6 +590,10 @@ std::vector<RotationPatternMatcherResults> RotatedPatternMatcher::search(cv::Mat
     Timer timer;
 	//決定金字塔層數 總共為1 + iLayer層
 	int iTopLayer = GetTopLayer (&m_matDst, (int)sqrt ((double)m_iMinReduceArea));
+	if (iTopLayer >= m_TemplData.vecPyramid.size())
+	{
+		iTopLayer = m_TemplData.vecPyramid.size() - 1;
+	}
     std::cout << "m_iMinReduceArea: " << m_iMinReduceArea << std::endl;
     std::cout << "iTopLayer: " << iTopLayer << std::endl;
 	//建立金字塔
@@ -694,6 +669,9 @@ std::vector<RotationPatternMatcherResults> RotatedPatternMatcher::search(cv::Mat
 		warpAffine (vecMatSrcPyr[iTopLayer], matRotatedSrc, matR, sizeBest, INTER_LINEAR, BORDER_CONSTANT, Scalar (pTemplData->iBorderColor));
         //imwrite(string_format("K:\\prj\\orange\\trunk\\vision\\VisionLib\\VisionTest\\bin\\Debug\\images\\%i_%.3f.png", iTopLayer, vecAngles[i]), matRotatedSrc);
 		MatchTemplate (matRotatedSrc, pTemplData, matResult, iTopLayer, false);
+
+		if (matResult.empty())
+			continue;
 
 		if (bCalMaxByBlock)
 		{
