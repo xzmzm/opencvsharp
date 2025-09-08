@@ -58,4 +58,12 @@ namespace OpenCvSharpEx.Internal
         public static extern ExceptionStatus rotatedPatternMatcher_RotatedPatternMatcher_search(IntPtr shapeMatcherObj, IntPtr image, double acceptancePercentage, double minAngle, double maxAngle, double angleStep, int maxMatchCount, int minReducedArea, double maxOverlapRatio,
             out IntPtr rotationPatternMatcherResults, out int rotationPatternMatcherResultsLength);
     }
+
+    public static partial class NativeMethods
+    {
+        [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern ExceptionStatus cv2ex_EdgesSubPix(IntPtr gray, double alpha, int low, int high, out IntPtr contours, out int numContours, IntPtr hierarchy, int mode);
+        [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern ExceptionStatus cv2ex_FreeContours(IntPtr contours, int numContours);
+    }
 }

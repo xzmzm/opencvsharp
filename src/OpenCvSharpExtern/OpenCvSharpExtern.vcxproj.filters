@@ -124,6 +124,12 @@
     <ClCompile Include="ShapeMatcher\cuda_icp\scene\kdtree_scene\kdtree_scene.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="EdgesSubPix\EdgesSubPix.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="EdgesSubPix\EdgesSubPixApi.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bgsegm.h">

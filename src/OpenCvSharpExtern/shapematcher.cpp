@@ -919,3 +919,4 @@ shapematcher_ShapeMatcher_getFeatures(ShapeMatcher *obj, int templateIndex, line
     }
     END_WRAP
 }
+
