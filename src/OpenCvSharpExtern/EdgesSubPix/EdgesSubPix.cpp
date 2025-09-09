@@ -525,3 +525,22 @@ void RefineContourSubPix(const Mat& dx, const Mat& dy,
         getSubPixPoint(dx, dy, best_p, refinedContour.points[i], refinedContour.response[i], refinedContour.direction[i]);
     }
 }
+
+void RefineContoursSubPix(const cv::Mat& dx, const cv::Mat& dy,
+    const std::vector<std::vector<cv::Point>>& initialContours,
+    int searchRadius,
+    std::vector<Contour>& refinedContours)
+{
+    size_t numContours = initialContours.size();
+    if (numContours == 0) return;
+
+    refinedContours.resize(numContours);
+
+#if defined(_OPENMP) && defined(NDEBUG)
+#pragma omp parallel for
+#endif
+    for (int i = 0; i < static_cast<int>(numContours); ++i)
+    {
+        RefineContourSubPix(dx, dy, initialContours[i], searchRadius, refinedContours[i]);
+    }
+}

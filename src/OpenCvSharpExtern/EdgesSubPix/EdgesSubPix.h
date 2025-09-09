@@ -24,4 +24,9 @@ void RefineContourSubPix(const cv::Mat& dx, const cv::Mat& dy,
     int searchRadius,
     Contour& refinedContour);
 
+void RefineContoursSubPix(const cv::Mat& dx, const cv::Mat& dy,
+    const std::vector<std::vector<cv::Point>>& initialContours,
+    int searchRadius,
+    std::vector<Contour>& refinedContours);
+
 #endif // __EDGES_SUBPIX_H__

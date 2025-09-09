@@ -254,5 +254,130 @@ namespace OpenCvSharpEx
                 RefineContourSubPix(dx, dy, initialContour, searchRadius, out refinedContour);
             }
         }
+
+        /// <summary>
+        /// Refines given integer-precision contours to sub-pixel accuracy.
+        /// </summary>
+        /// <param name="dx">Precomputed 16-bit signed integer (CV_16S) gradient map in X direction.</param>
+        /// <param name="dy">Precomputed 16-bit signed integer (CV_16S) gradient map in Y direction.</param>
+        /// <param name="initialContours">The integer-precision contours to refine.</param>
+        /// <param name="searchRadius">The radius (in pixels) to search for the strongest edge along the normal of each contour point.</param>
+        /// <param name="refinedContours">The output sub-pixel accurate contours.</param>
+        public static void RefineContourSubPix(
+            InputArray dx,
+            InputArray dy,
+            System.Collections.Generic.IEnumerable<Point[]> initialContours,
+            int searchRadius,
+            out Contour[] refinedContours)
+        {
+            if (dx == null) throw new ArgumentNullException(nameof(dx));
+            if (dy == null) throw new ArgumentNullException(nameof(dy));
+            if (initialContours == null) throw new ArgumentNullException(nameof(initialContours));
+            dx.ThrowIfDisposed();
+            dy.ThrowIfDisposed();
+
+            var initialContoursArray = System.Linq.Enumerable.ToArray(initialContours);
+            int numContours = initialContoursArray.Length;
+            if (numContours == 0)
+            {
+                refinedContours = Array.Empty<Contour>();
+                return;
+            }
+
+            var contourLengths = new int[numContours];
+            int totalPoints = 0;
+            for (int i = 0; i < numContours; i++)
+            {
+                contourLengths[i] = initialContoursArray[i]?.Length ?? 0;
+                totalPoints += contourLengths[i];
+            }
+
+            var contoursData = new Point[totalPoints];
+            int currentPos = 0;
+            for (int i = 0; i < numContours; i++)
+            {
+                if (contourLengths[i] > 0)
+                {
+                    Array.Copy(initialContoursArray[i], 0, contoursData, currentPos, contourLengths[i]);
+                    currentPos += contourLengths[i];
+                }
+            }
+
+            Mat dxMat = dx.GetMat();
+            Mat dyMat = dy.GetMat();
+
+            NativeMethods.cv2ex_RefineContoursSubPix(
+                dxMat.CvPtr, dyMat.CvPtr,
+                contoursData, contourLengths, numContours,
+                searchRadius,
+                out var contoursPtr, out var outNumContours);
+
+            if (outNumContours > 0 && contoursPtr != IntPtr.Zero)
+            {
+                refinedContours = new Contour[outNumContours];
+                var contourCSize = Marshal.SizeOf<ContourC>();
+
+                for (int i = 0; i < outNumContours; i++)
+                {
+                    IntPtr currentContourPtr = new IntPtr(contoursPtr.ToInt64() + i * contourCSize);
+                    var contourC = Marshal.PtrToStructure<ContourC>(currentContourPtr);
+
+                    var contour = new Contour
+                    {
+                        Points = new Point2f[contourC.NumPoints],
+                        Direction = new float[contourC.NumPoints],
+                        Response = new float[contourC.NumPoints]
+                    };
+
+                    if (contourC.NumPoints > 0)
+                    {
+                        var point2fSize = Marshal.SizeOf<Point2f>();
+                        for (int j = 0; j < contourC.NumPoints; j++)
+                        {
+                            IntPtr p = new IntPtr(contourC.Points.ToInt64() + j * point2fSize);
+                            contour.Points[j] = Marshal.PtrToStructure<Point2f>(p);
+                        }
+
+                        Marshal.Copy(contourC.Direction, contour.Direction, 0, contourC.NumPoints);
+                        Marshal.Copy(contourC.Response, contour.Response, 0, contourC.NumPoints);
+                    }
+                    refinedContours[i] = contour;
+                }
+                NativeMethods.cv2ex_FreeContours(contoursPtr, outNumContours);
+            }
+            else
+            {
+                refinedContours = Array.Empty<Contour>();
+            }
+
+            GC.KeepAlive(dx);
+            GC.KeepAlive(dy);
+            GC.KeepAlive(dxMat);
+            GC.KeepAlive(dyMat);
+        }
+
+        /// <summary>
+        /// Refines given integer-precision contours to sub-pixel accuracy.
+        /// This is a convenience overload that computes gradient maps internally.
+        /// </summary>
+        /// <param name="gray">Input 8-bit single-channel image.</param>
+        /// <param name="initialContours">The integer-precision contours to refine.</param>
+        /// <param name="alpha">The alpha parameter for the Gaussian filter (sigma).</param>
+        /// <param name="searchRadius">The radius (in pixels) to search for the strongest edge along the normal of each contour point.</param>
+        /// <param name="refinedContours">The output sub-pixel accurate contours.</param>
+        public static void RefineContourSubPix(
+            InputArray gray,
+            System.Collections.Generic.IEnumerable<Point[]> initialContours,
+            double alpha,
+            int searchRadius,
+            out Contour[] refinedContours)
+        {
+            using (var dx = new Mat())
+            using (var dy = new Mat())
+            {
+                PrecomputeEdgesSubPix(gray, alpha, dx, dy);
+                RefineContourSubPix(dx, dy, initialContours, searchRadius, out refinedContours);
+            }
+        }
     }
 }
