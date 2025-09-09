@@ -15,7 +15,7 @@ struct Contour_C
 {
     cv::Point2f* points;
     int num_points;
-    float* direction;
+    float* normal_angles;
     float* response;
 };
 
@@ -56,8 +56,8 @@ CVAPI(ExceptionStatus) cv2ex_EdgesSubPix(
                 memcpy(c_contour.points, cpp_contour.points.data(), points_size);
                 
                 size_t data_size = sizeof(float) * c_contour.num_points;
-                c_contour.direction = (float*)CoTaskMemAlloc(data_size);
-                memcpy(c_contour.direction, cpp_contour.direction.data(), data_size);
+                c_contour.normal_angles = (float*)CoTaskMemAlloc(data_size);
+                memcpy(c_contour.normal_angles, cpp_contour.normal_angles.data(), data_size);
                 
                 c_contour.response = (float*)CoTaskMemAlloc(data_size);
                 memcpy(c_contour.response, cpp_contour.response.data(), data_size);
@@ -65,7 +65,7 @@ CVAPI(ExceptionStatus) cv2ex_EdgesSubPix(
             else
             {
                 c_contour.points = nullptr;
-                c_contour.direction = nullptr;
+                c_contour.normal_angles = nullptr;
                 c_contour.response = nullptr;
             }
         }
@@ -86,7 +86,7 @@ CVAPI(ExceptionStatus) cv2ex_FreeContours(Contour_C* contours, int num_contours)
         for (int i = 0; i < num_contours; ++i)
         {
             if(contours[i].points) CoTaskMemFree(contours[i].points);
-            if(contours[i].direction) CoTaskMemFree(contours[i].direction);
+            if(contours[i].normal_angles) CoTaskMemFree(contours[i].normal_angles);
             if(contours[i].response) CoTaskMemFree(contours[i].response);
         }
         CoTaskMemFree(contours);
@@ -122,7 +122,7 @@ CVAPI(ExceptionStatus) cv2ex_RefineContourSubPix(
         {
             out_refinedContour->num_points = 0;
             out_refinedContour->points = nullptr;
-            out_refinedContour->direction = nullptr;
+            out_refinedContour->normal_angles = nullptr;
             out_refinedContour->response = nullptr;
         }
         return ExceptionStatus::NotOccurred;
@@ -142,8 +142,8 @@ CVAPI(ExceptionStatus) cv2ex_RefineContourSubPix(
         memcpy(out_refinedContour->points, cpp_refinedContour.points.data(), points_size);
 
         size_t data_size = sizeof(float) * out_refinedContour->num_points;
-        out_refinedContour->direction = (float*)CoTaskMemAlloc(data_size);
-        memcpy(out_refinedContour->direction, cpp_refinedContour.direction.data(), data_size);
+        out_refinedContour->normal_angles = (float*)CoTaskMemAlloc(data_size);
+        memcpy(out_refinedContour->normal_angles, cpp_refinedContour.normal_angles.data(), data_size);
 
         out_refinedContour->response = (float*)CoTaskMemAlloc(data_size);
         memcpy(out_refinedContour->response, cpp_refinedContour.response.data(), data_size);
@@ -151,7 +151,7 @@ CVAPI(ExceptionStatus) cv2ex_RefineContourSubPix(
     else
     {
         out_refinedContour->points = nullptr;
-        out_refinedContour->direction = nullptr;
+        out_refinedContour->normal_angles = nullptr;
         out_refinedContour->response = nullptr;
     }
 
@@ -206,8 +206,8 @@ CVAPI(ExceptionStatus) cv2ex_RefineContoursSubPix(
                 memcpy(c_contour.points, cpp_contour.points.data(), points_size);
 
                 size_t data_size = sizeof(float) * c_contour.num_points;
-                c_contour.direction = (float*)CoTaskMemAlloc(data_size);
-                memcpy(c_contour.direction, cpp_contour.direction.data(), data_size);
+                c_contour.normal_angles = (float*)CoTaskMemAlloc(data_size);
+                memcpy(c_contour.normal_angles, cpp_contour.normal_angles.data(), data_size);
 
                 c_contour.response = (float*)CoTaskMemAlloc(data_size);
                 memcpy(c_contour.response, cpp_contour.response.data(), data_size);
@@ -215,7 +215,7 @@ CVAPI(ExceptionStatus) cv2ex_RefineContoursSubPix(
             else
             {
                 c_contour.points = nullptr;
-                c_contour.direction = nullptr;
+                c_contour.normal_angles = nullptr;
                 c_contour.response = nullptr;
             }
         }
@@ -234,11 +234,11 @@ CVAPI(ExceptionStatus) cv2ex_FreeContourData(Contour_C* contour)
     if (contour != nullptr)
     {
         if (contour->points) CoTaskMemFree(contour->points);
-        if (contour->direction) CoTaskMemFree(contour->direction);
+        if (contour->normal_angles) CoTaskMemFree(contour->normal_angles);
         if (contour->response) CoTaskMemFree(contour->response);
         // Zero out to prevent double-free
         contour->points = nullptr;
-        contour->direction = nullptr;
+        contour->normal_angles = nullptr;
         contour->response = nullptr;
     }
     END_WRAP

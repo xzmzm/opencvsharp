@@ -6,7 +6,7 @@
 struct Contour
 {
     std::vector<cv::Point2f> points;
-    std::vector<float> direction;
+    std::vector<float> normal_angles;
     std::vector<float> response;
 };
 // only 8-bit

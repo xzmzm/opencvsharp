@@ -1,4 +1,4 @@
-﻿using System;
+﻿﻿using System;
 using System.Runtime.InteropServices;
 using OpenCvSharp;
 using OpenCvSharpEx.Internal;
@@ -16,9 +16,9 @@ namespace OpenCvSharpEx
         public Point2f[] Points { get; internal set; }
 
         /// <summary>
-        /// The direction of the edge at each point (in radians).
+        /// The angle of the normal vector at each point (in radians).
         /// </summary>
-        public float[] Direction { get; internal set; }
+        public float[] NormalAngles { get; internal set; }
 
         /// <summary>
         /// The response (magnitude) of the edge at each point.
@@ -32,7 +32,7 @@ namespace OpenCvSharpEx
     {
         public IntPtr Points;
         public int NumPoints;
-        public IntPtr Direction;
+        public IntPtr NormalAngles;
         public IntPtr Response;
     }
 
@@ -86,7 +86,7 @@ namespace OpenCvSharpEx
                     var contour = new Contour
                     {
                         Points = new Point2f[contourC.NumPoints],
-                        Direction = new float[contourC.NumPoints],
+                        NormalAngles = new float[contourC.NumPoints],
                         Response = new float[contourC.NumPoints]
                     };
 
@@ -101,7 +101,7 @@ namespace OpenCvSharpEx
                         }
 
                         // Marshal direction and response
-                        Marshal.Copy(contourC.Direction, contour.Direction, 0, contourC.NumPoints);
+                        Marshal.Copy(contourC.NormalAngles, contour.NormalAngles, 0, contourC.NumPoints);
                         Marshal.Copy(contourC.Response, contour.Response, 0, contourC.NumPoints);
                     }
 
@@ -243,7 +243,7 @@ namespace OpenCvSharpEx
                 if (contourC.NumPoints > 0)
                 {
                     refinedContour.Points = new Point2f[contourC.NumPoints];
-                    refinedContour.Direction = new float[contourC.NumPoints];
+                    refinedContour.NormalAngles = new float[contourC.NumPoints];
                     refinedContour.Response = new float[contourC.NumPoints];
 
                     var point2fSize = Marshal.SizeOf<Point2f>();
@@ -253,13 +253,13 @@ namespace OpenCvSharpEx
                         refinedContour.Points[j] = Marshal.PtrToStructure<Point2f>(p);
                     }
 
-                    Marshal.Copy(contourC.Direction, refinedContour.Direction, 0, contourC.NumPoints);
+                    Marshal.Copy(contourC.NormalAngles, refinedContour.NormalAngles, 0, contourC.NumPoints);
                     Marshal.Copy(contourC.Response, refinedContour.Response, 0, contourC.NumPoints);
                 }
                 else
                 {
                     refinedContour.Points = Array.Empty<Point2f>();
-                    refinedContour.Direction = Array.Empty<float>();
+                    refinedContour.NormalAngles = Array.Empty<float>();
                     refinedContour.Response = Array.Empty<float>();
                 }
             }
@@ -400,7 +400,7 @@ namespace OpenCvSharpEx
                     var contour = new Contour
                     {
                         Points = new Point2f[contourC.NumPoints],
-                        Direction = new float[contourC.NumPoints],
+                        NormalAngles = new float[contourC.NumPoints],
                         Response = new float[contourC.NumPoints]
                     };
 
@@ -413,7 +413,7 @@ namespace OpenCvSharpEx
                             contour.Points[j] = Marshal.PtrToStructure<Point2f>(p);
                         }
 
-                        Marshal.Copy(contourC.Direction, contour.Direction, 0, contourC.NumPoints);
+                        Marshal.Copy(contourC.NormalAngles, contour.NormalAngles, 0, contourC.NumPoints);
                         Marshal.Copy(contourC.Response, contour.Response, 0, contourC.NumPoints);
                     }
                     refinedContours[i] = contour;

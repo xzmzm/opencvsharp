@@ -361,7 +361,7 @@ static inline double vector2angle(double x, double y)
     return a >= 0.0 ? a : a + CV_2PI;
 }
 
-static void getSubPixPoint(const Mat& dx, const Mat& dy, const Point& p, Point2f& subpix_p, float& response, float& direction)
+static void getSubPixPoint(const Mat& dx, const Mat& dy, const Point& p, Point2f& subpix_p, float& response, float& normal_angle)
 {
     int w = dx.cols;
     int h = dx.rows;
@@ -392,7 +392,7 @@ static void getSubPixPoint(const Mat& dx, const Mat& dy, const Point& p, Point2f
     }
     subpix_p = Point2f(x, y);
     response = (float)(a[0] / scale);
-    direction = (float)vector2angle(ny, nx);
+    normal_angle = (float)vector2angle(nx, ny);
 }
 
 void extractSubPixPoints(const Mat& dx, const Mat& dy, vector<vector<Point> >& contoursInPixel, vector<Contour>& contours)
@@ -406,13 +406,13 @@ void extractSubPixPoints(const Mat& dx, const Mat& dy, vector<vector<Point> >& c
         Contour& contour = contours[i];
         contour.points.resize(icontour.size());
         contour.response.resize(icontour.size());
-        contour.direction.resize(icontour.size());
+        contour.normal_angles.resize(icontour.size());
 #if defined(_OPENMP) && defined(NDEBUG)
 #pragma omp parallel for
 #endif
         for (int j = 0; j < (int)icontour.size(); ++j)
         {
-            getSubPixPoint(dx, dy, icontour[j], contour.points[j], contour.response[j], contour.direction[j]);
+            getSubPixPoint(dx, dy, icontour[j], contour.points[j], contour.response[j], contour.normal_angles[j]);
         }
     }
 }
@@ -483,7 +483,7 @@ void RefineContourSubPix(const Mat& dx, const Mat& dy,
     if (n_points == 0) return;
 
     refinedContour.points.resize(n_points);
-    refinedContour.direction.resize(n_points);
+    refinedContour.normal_angles.resize(n_points);
     refinedContour.response.resize(n_points);
 
     int width = dx.cols;
@@ -505,7 +505,7 @@ void RefineContourSubPix(const Mat& dx, const Mat& dy,
         else {
             // Fallback for coincident points
             Point best_p = p_i;
-            getSubPixPoint(dx, dy, best_p, refinedContour.points[i], refinedContour.response[i], refinedContour.direction[i]);
+            getSubPixPoint(dx, dy, best_p, refinedContour.points[i], refinedContour.response[i], refinedContour.normal_angles[i]);
             continue;
         }
 
@@ -537,7 +537,7 @@ void RefineContourSubPix(const Mat& dx, const Mat& dy,
         best_p.x = std::max(1, std::min(width - 2, best_p.x));
         best_p.y = std::max(1, std::min(height - 2, best_p.y));
 
-        getSubPixPoint(dx, dy, best_p, refinedContour.points[i], refinedContour.response[i], refinedContour.direction[i]);
+        getSubPixPoint(dx, dy, best_p, refinedContour.points[i], refinedContour.response[i], refinedContour.normal_angles[i]);
     }
 
     // Post-process to fix intersections at sharp corners
