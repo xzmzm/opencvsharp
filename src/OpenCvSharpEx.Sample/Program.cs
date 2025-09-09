@@ -18,7 +18,7 @@ namespace OpenCvSharpEx.Sample
         {
             var additionalPathDirs = new[]
             {
-                @"K:\src\opencvsharp\src\Debug1\x64",
+                @"K:\src\opencvsharp\src\Release\x64",
                 @"Q:\src\vision\opencvsharp\src\Release\x64",
                 @"D:\src\vision\opencvsharp\src\Debug1\x64"
             };
