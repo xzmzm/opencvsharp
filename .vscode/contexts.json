@@ -1,0 +1,22 @@
+[
+  {
+    "name": "shape and rotated",
+    "paths": [
+      "src/OpenCvSharpEx.Sample",
+      "src/OpenCvSharpEx/Extensions.cs",
+      "src/OpenCvSharpEx/NativeMethods.cs",
+      "src/OpenCvSharpEx/OpenCvSharpEx.csproj",
+      "src/OpenCvSharpEx/RotatedPatternMatcher.cs",
+      "src/OpenCvSharpEx/ShapeMatcher.cs",
+      "src/OpenCvSharpExtern/shapematcher.cpp",
+      "src/OpenCvSharpExtern/shapematcher.h",
+      "src/OpenCvSharpExtern/ShapeMatcher/cuda_icp",
+      "src/OpenCvSharpExtern/ShapeMatcher/fusion.h",
+      "src/OpenCvSharpExtern/ShapeMatcher/line2Dup.cpp",
+      "src/OpenCvSharpExtern/ShapeMatcher/line2Dup.h",
+      "src/OpenCvSharpExtern/ShapeMatcher/MIPP/mipp_impl_SSE.hxx",
+      "src/OpenCvSharpExtern/ShapeMatcher/MIPP/mipp.h",
+      "src/OpenCvSharpExtern/ShapeMatcher/test.cpp"
+    ]
+  }
+]

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.ComponentModel;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -9,14 +10,30 @@ using OpenCvSharp.Extensions;
 
 namespace OpenCvSharpEx.Sample
 {
+    public class EdgesSubPixSettings
+    {
+        [Description("The alpha parameter for the Gaussian filter (sigma).")]
+        public double Alpha { get; set; } = 1.0;
+
+        [Description("The lower hysteresis threshold.")]
+        public int LowThreshold { get; set; } = 50;
+
+        [Description("The higher hysteresis threshold.")]
+        public int HighThreshold { get; set; } = 100;
+
+        [Description("Contour retrieval mode.")]
+        public RetrievalModes RetrievalMode { get; set; } = RetrievalModes.List;
+    }
     public partial class Form1 : Form
     {
         private ShapeMatcher shapeMatcher;
         private RotatedPatternMatcher rotatedPatternMatcher;
+        private EdgesSubPixSettings edgesSubPixSettings;
         private Mat patternMat;
         private Mat searchImageMat;
         private ShapeMatcherResults lastSearchResult;
         private RotationPatternMatcherResults[] lastRotatedSearchResult;
+        private Contour[] lastEdgesSubPixResult;
 
         public Form1()
         {
@@ -26,6 +43,9 @@ namespace OpenCvSharpEx.Sample
 
             this.rotatedPatternMatcher = new RotatedPatternMatcher();
             this.propertyGridRotatedPatternMatcher.SelectedObject = this.rotatedPatternMatcher;
+
+            this.edgesSubPixSettings = new EdgesSubPixSettings();
+            this.propertyGridEdgesSubPix.SelectedObject = this.edgesSubPixSettings;
         }
 
         private void OnLoadPatternClick(object sender, EventArgs e)
@@ -115,6 +135,7 @@ namespace OpenCvSharpEx.Sample
                     this.pictureBox1.Image = this.searchImageMat.ToBitmap();
                     this.lastSearchResult = null;
                     this.lastRotatedSearchResult = null;
+                    this.lastEdgesSubPixResult = null;
                     this.Log($"Search image '{ofd.FileName}' loaded.");
                 }
             }
@@ -122,14 +143,9 @@ namespace OpenCvSharpEx.Sample
 
         private void OnSearchClick(object sender, EventArgs e)
         {
-            if (this.tabControl1.SelectedIndex == 0 && this.shapeMatcher == null)
-            {
-                MessageBox.Show("Matcher not initialized. Please teach a pattern first.");
-                return;
-            }
             if (this.searchImageMat == null)
             {
-                MessageBox.Show("Please load an image to search in.");
+                MessageBox.Show("Please load an image to process.");
                 return;
             }
 
@@ -140,12 +156,13 @@ namespace OpenCvSharpEx.Sample
                 else
                     this.searchImageMat.CopyTo(gray);
 
-                this.Log("Searching...");
+                this.Log("Processing...");
                 var sw = Stopwatch.StartNew();
                 if (this.tabControl1.SelectedIndex == 0) // Shape Matcher
                 {
                     try
                     {
+                        this.Log("Searching...");
                         this.lastSearchResult = this.shapeMatcher.Search(gray);
                         sw.Stop();
 
@@ -177,10 +194,11 @@ namespace OpenCvSharpEx.Sample
                         return;
                     }
                 }
-                else // Rotated Pattern Matcher
+                else if (this.tabControl1.SelectedIndex == 1) // Rotated Pattern Matcher
                 {
                     try
                     {
+                        this.Log("Searching...");
                         this.lastRotatedSearchResult = this.rotatedPatternMatcher.Search(gray);
                         sw.Stop();
 
@@ -204,6 +222,37 @@ namespace OpenCvSharpEx.Sample
                     catch (OpenCvSharpException ex)
                     {
                         this.Log($"Error during search: {ex.Message}");
+                    }
+                }
+                else // Edges SubPix
+                {
+                    try
+                    {
+                        this.Log("Finding sub-pixel edges...");
+                        Cv2Ex.EdgesSubPix(gray,
+                            this.edgesSubPixSettings.Alpha,
+                            this.edgesSubPixSettings.LowThreshold,
+                            this.edgesSubPixSettings.HighThreshold,
+                            out this.lastEdgesSubPixResult,
+                            null, // no hierarchy for now
+                            this.edgesSubPixSettings.RetrievalMode);
+                        sw.Stop();
+
+                        if (this.lastEdgesSubPixResult != null && this.lastEdgesSubPixResult.Length > 0)
+                        {
+                            this.Log($"Edge detection complete in {sw.ElapsedMilliseconds} ms. Found {this.lastEdgesSubPixResult.Length} contours.");
+                            this.DrawEdgesSubPixResult();
+                        }
+                        else
+                        {
+                            this.Log($"Edge detection complete in {sw.ElapsedMilliseconds} ms. No contours found.");
+                            this.pictureBox1.Image?.Dispose();
+                            this.pictureBox1.Image = this.searchImageMat.ToBitmap();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        this.Log($"Error during edge detection: {ex.Message}");
                     }
                 }
             }
@@ -276,6 +325,32 @@ namespace OpenCvSharpEx.Sample
             }
         }
 
+        private void DrawEdgesSubPixResult()
+        {
+            if (this.searchImageMat == null || this.lastEdgesSubPixResult == null) return;
+
+            using (var resultMat = new Mat())
+            {
+                if (this.searchImageMat.Channels() == 1)
+                    Cv2.CvtColor(this.searchImageMat, resultMat, ColorConversionCodes.GRAY2BGR);
+                else
+                    this.searchImageMat.CopyTo(resultMat);
+
+                var rng = new Random();
+                foreach (var contour in this.lastEdgesSubPixResult)
+                {
+                    if (contour.Points.Length < 2) continue;
+
+                    var color = new Scalar(rng.Next(0, 256), rng.Next(0, 256), rng.Next(0, 256));
+                    var points = contour.Points.Select(p => (OpenCvSharp.Point)p).ToArray();
+                    Cv2.Polylines(resultMat, new[] { points }, false, color, 1, LineTypes.AntiAlias);
+                }
+
+                this.pictureBox1.Image?.Dispose();
+                this.pictureBox1.Image = resultMat.ToBitmap();
+            }
+        }
+
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
             base.OnFormClosing(e);
@@ -299,6 +374,38 @@ namespace OpenCvSharpEx.Sample
             if (this.rotatedPatternMatcher != null)
             {
                 this.Log($"Rotated Pattern Matcher property changed: {e.ChangedItem.Label} = {e.ChangedItem.Value}");
+            }
+        }
+
+        private void OnEdgesSubPixPropertyValueChanged(object s, PropertyValueChangedEventArgs e)
+        {
+            if (this.edgesSubPixSettings != null)
+            {
+                this.Log($"EdgesSubPix property changed: {e.ChangedItem.Label} = {e.ChangedItem.Value}");
+            }
+        }
+
+        private void OnTabControlSelectedIndexChanged(object sender, EventArgs e)
+        {
+            bool isMatcherTab = this.tabControl1.SelectedIndex == 0 || this.tabControl1.SelectedIndex == 1;
+            this.btnLoadPattern.Visible = isMatcherTab;
+            this.btnTeach.Visible = isMatcherTab;
+
+            if (this.tabControl1.SelectedIndex == 2) // Edges SubPix
+            {
+                this.btnSearch.Text = "Find Edges";
+                if (this.patternMat != null && this.searchImageMat == null)
+                {
+                    this.searchImageMat = this.patternMat.Clone();
+                    this.Log("Using pattern image as source for edge detection.");
+                    this.pictureBox1.Image?.Dispose();
+                    this.pictureBox1.Image = this.searchImageMat.ToBitmap();
+                    this.lastEdgesSubPixResult = null;
+                }
+            }
+            else
+            {
+                this.btnSearch.Text = "Search";
             }
         }
     }

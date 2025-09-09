@@ -40,6 +40,8 @@
             this.propertyGridShapeMatcher = new System.Windows.Forms.PropertyGrid();
             this.tabPageRotatedPatternMatcher = new System.Windows.Forms.TabPage();
             this.propertyGridRotatedPatternMatcher = new System.Windows.Forms.PropertyGrid();
+            this.tabPageEdgesSubPix = new System.Windows.Forms.TabPage();
+            this.propertyGridEdgesSubPix = new System.Windows.Forms.PropertyGrid();
             this.txtOutput = new System.Windows.Forms.TextBox();
             this.pictureBox1 = new System.Windows.Forms.PictureBox();
             this.tableLayoutPanel1.SuspendLayout();
@@ -54,6 +56,7 @@
             this.tabControl1.SuspendLayout();
             this.tabPageShapeMatcher.SuspendLayout();
             this.tabPageRotatedPatternMatcher.SuspendLayout();
+            this.tabPageEdgesSubPix.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
             this.SuspendLayout();
             // 
@@ -160,12 +163,14 @@
             // 
             this.tabControl1.Controls.Add(this.tabPageShapeMatcher);
             this.tabControl1.Controls.Add(this.tabPageRotatedPatternMatcher);
+            this.tabControl1.Controls.Add(this.tabPageEdgesSubPix);
             this.tabControl1.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tabControl1.Location = new System.Drawing.Point(0, 0);
             this.tabControl1.Name = "tabControl1";
             this.tabControl1.SelectedIndex = 0;
             this.tabControl1.Size = new System.Drawing.Size(328, 280);
             this.tabControl1.TabIndex = 1;
+            this.tabControl1.SelectedIndexChanged += new System.EventHandler(this.OnTabControlSelectedIndexChanged);
             // 
             // tabPageShapeMatcher
             // 
@@ -206,6 +211,26 @@
             this.propertyGridRotatedPatternMatcher.Size = new System.Drawing.Size(314, 245);
             this.propertyGridRotatedPatternMatcher.TabIndex = 0;
             this.propertyGridRotatedPatternMatcher.PropertyValueChanged += new System.Windows.Forms.PropertyValueChangedEventHandler(this.OnRotatedPatternMatcherPropertyValueChanged);
+            //
+            // tabPageEdgesSubPix
+            //
+            this.tabPageEdgesSubPix.Controls.Add(this.propertyGridEdgesSubPix);
+            this.tabPageEdgesSubPix.Location = new System.Drawing.Point(4, 25);
+            this.tabPageEdgesSubPix.Name = "tabPageEdgesSubPix";
+            this.tabPageEdgesSubPix.Padding = new System.Windows.Forms.Padding(3);
+            this.tabPageEdgesSubPix.Size = new System.Drawing.Size(320, 251);
+            this.tabPageEdgesSubPix.TabIndex = 2;
+            this.tabPageEdgesSubPix.Text = "Edges SubPix";
+            this.tabPageEdgesSubPix.UseVisualStyleBackColor = true;
+            //
+            // propertyGridEdgesSubPix
+            //
+            this.propertyGridEdgesSubPix.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.propertyGridEdgesSubPix.Location = new System.Drawing.Point(3, 3);
+            this.propertyGridEdgesSubPix.Name = "propertyGridEdgesSubPix";
+            this.propertyGridEdgesSubPix.Size = new System.Drawing.Size(314, 245);
+            this.propertyGridEdgesSubPix.TabIndex = 0;
+            this.propertyGridEdgesSubPix.PropertyValueChanged += new System.Windows.Forms.PropertyValueChangedEventHandler(this.OnEdgesSubPixPropertyValueChanged);
             // 
             // txtOutput
             // 
@@ -252,6 +277,7 @@
             this.tabControl1.ResumeLayout(false);
             this.tabPageShapeMatcher.ResumeLayout(false);
             this.tabPageRotatedPatternMatcher.ResumeLayout(false);
+            this.tabPageEdgesSubPix.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).EndInit();
             this.ResumeLayout(false);
 
@@ -273,6 +299,8 @@
         private System.Windows.Forms.TabPage tabPageShapeMatcher;
         private System.Windows.Forms.TabPage tabPageRotatedPatternMatcher;
         private System.Windows.Forms.PropertyGrid propertyGridRotatedPatternMatcher;
+        private System.Windows.Forms.TabPage tabPageEdgesSubPix;
+        private System.Windows.Forms.PropertyGrid propertyGridEdgesSubPix;
     }
 }
 
