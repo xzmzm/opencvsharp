@@ -7,6 +7,7 @@ using System.Linq;
 using System.Windows.Forms;
 using OpenCvSharp;
 using OpenCvSharp.Extensions;
+using System.Collections.Generic;
 
 namespace OpenCvSharpEx.Sample
 {
@@ -23,6 +24,15 @@ namespace OpenCvSharpEx.Sample
 
         [Description("Contour retrieval mode.")]
         public RetrievalModes RetrievalMode { get; set; } = RetrievalModes.List;
+
+        [Description("If true, finds binary contours using BinaryThreshold and then refines them.")]
+        public bool RefineBinaryContours { get; set; } = false;
+
+        [Description("Threshold for binary contour detection (0-255). Used when RefineBinaryContours is true.")]
+        public int BinaryThreshold { get; set; } = 128;
+
+        [Description("Search radius in pixels for sub-pixel refinement. Used when RefineBinaryContours is true.")]
+        public int SearchRadius { get; set; } = 3;
     }
     public partial class Form1 : Form
     {
@@ -228,31 +238,68 @@ namespace OpenCvSharpEx.Sample
                 {
                     try
                     {
-                        this.Log("Finding sub-pixel edges...");
-                        Cv2Ex.EdgesSubPix(gray,
-                            this.edgesSubPixSettings.Alpha,
-                            this.edgesSubPixSettings.LowThreshold,
-                            this.edgesSubPixSettings.HighThreshold,
-                            out this.lastEdgesSubPixResult,
-                            null, // no hierarchy for now
-                            this.edgesSubPixSettings.RetrievalMode);
-                        sw.Stop();
-
-                        if (this.lastEdgesSubPixResult != null && this.lastEdgesSubPixResult.Length > 0)
+                        if (!this.edgesSubPixSettings.RefineBinaryContours)
                         {
-                            this.Log($"Edge detection complete in {sw.ElapsedMilliseconds} ms. Found {this.lastEdgesSubPixResult.Length} contours.");
-                            this.DrawEdgesSubPixResult();
+                            this.Log("Finding sub-pixel edges directly...");
+                            Cv2Ex.EdgesSubPix(gray,
+                                this.edgesSubPixSettings.Alpha,
+                                this.edgesSubPixSettings.LowThreshold,
+                                this.edgesSubPixSettings.HighThreshold,
+                                out this.lastEdgesSubPixResult,
+                                null, // no hierarchy for now
+                                this.edgesSubPixSettings.RetrievalMode);
+                            sw.Stop();
+
+                            if (this.lastEdgesSubPixResult != null && this.lastEdgesSubPixResult.Length > 0)
+                            {
+                                this.Log($"Edge detection complete in {sw.ElapsedMilliseconds} ms. Found {this.lastEdgesSubPixResult.Length} contours.");
+                                this.DrawEdgesSubPixResult();
+                            }
+                            else
+                            {
+                                this.Log($"Edge detection complete in {sw.ElapsedMilliseconds} ms. No contours found.");
+                                this.pictureBox1.Image?.Dispose();
+                                this.pictureBox1.Image = this.searchImageMat.ToBitmap();
+                            }
                         }
                         else
                         {
-                            this.Log($"Edge detection complete in {sw.ElapsedMilliseconds} ms. No contours found.");
-                            this.pictureBox1.Image?.Dispose();
-                            this.pictureBox1.Image = this.searchImageMat.ToBitmap();
+                            this.Log("Refining binary contours...");
+
+                            // 1. Find binary contours
+                            using (var binary = new Mat())
+                            {
+                                Cv2.Threshold(gray, binary, this.edgesSubPixSettings.BinaryThreshold, 255, ThresholdTypes.Binary);
+                                Cv2.FindContours(binary, out var binaryContours, out _, this.edgesSubPixSettings.RetrievalMode, ContourApproximationModes.ApproxNone);
+                                this.Log($"Found {binaryContours.Length} binary contours.");
+
+                                // 2. Refine them
+                                var refinedContours = new List<Contour>();
+                                using (var dx = new Mat())
+                                using (var dy = new Mat())
+                                {
+                                    Cv2Ex.PrecomputeEdgesSubPix(gray, this.edgesSubPixSettings.Alpha, dx, dy);
+                                    foreach (var initialContour in binaryContours)
+                                    {
+                                        if (initialContour.Length < 3) continue; // Skip very small contours
+                                        Cv2Ex.RefineContourSubPix(dx, dy, initialContour, this.edgesSubPixSettings.SearchRadius, out var refinedContour);
+                                        if (refinedContour.Points.Length > 0)
+                                        {
+                                            refinedContours.Add(refinedContour);
+                                        }
+                                    }
+                                }
+                                this.lastEdgesSubPixResult = refinedContours.ToArray();
+                                sw.Stop();
+                                this.Log($"Refinement complete in {sw.ElapsedMilliseconds} ms. Refined {this.lastEdgesSubPixResult.Length} contours.");
+                                this.DrawEdgesSubPixResult(binaryContours);
+                            }
                         }
                     }
                     catch (Exception ex)
                     {
                         this.Log($"Error during edge detection: {ex.Message}");
+                        this.lastEdgesSubPixResult = null;
                     }
                 }
             }
@@ -325,7 +372,7 @@ namespace OpenCvSharpEx.Sample
             }
         }
 
-        private void DrawEdgesSubPixResult()
+        private void DrawEdgesSubPixResult(OpenCvSharp.Point[][] initialContours = null)
         {
             if (this.searchImageMat == null || this.lastEdgesSubPixResult == null) return;
 
@@ -335,6 +382,12 @@ namespace OpenCvSharpEx.Sample
                     Cv2.CvtColor(this.searchImageMat, resultMat, ColorConversionCodes.GRAY2BGR);
                 else
                     this.searchImageMat.CopyTo(resultMat);
+
+                // Draw initial contours if provided (e.g., from binary threshold)
+                if (initialContours != null)
+                {
+                    Cv2.DrawContours(resultMat, initialContours, -1, Scalar.Yellow, 1);
+                }
 
                 var rng = new Random();
                 foreach (var contour in this.lastEdgesSubPixResult)

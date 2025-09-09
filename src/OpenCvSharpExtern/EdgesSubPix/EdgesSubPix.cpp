@@ -247,13 +247,13 @@ static void postCannyFilter(const Mat& src, Mat& dx, Mat& dy, int low, int high,
     }
 }
 
-static inline  double getAmplitude(Mat& dx, Mat& dy, int i, int j)
+static inline  double getAmplitude(const Mat& dx, const Mat& dy, int i, int j)
 {
     Point2d mag(dx.at<short>(i, j), dy.at<short>(i, j));
     return norm(mag);
 }
 
-static inline void getMagNeighbourhood(Mat& dx, Mat& dy, Point& p, int w, int h, vector<double>& mag)
+static inline void getMagNeighbourhood(const Mat& dx, const Mat& dy, const Point& p, int w, int h, vector<double>& mag)
 {
     int top = p.y - 1 >= 0 ? p.y - 1 : p.y;
     int down = p.y + 1 < h ? p.y + 1 : p.y;
@@ -361,7 +361,41 @@ static inline double vector2angle(double x, double y)
     return a >= 0.0 ? a : a + CV_2PI;
 }
 
-void extractSubPixPoints(Mat& dx, Mat& dy, vector<vector<Point> >& contoursInPixel, vector<Contour>& contours)
+static void getSubPixPoint(const Mat& dx, const Mat& dy, const Point& p, Point2f& subpix_p, float& response, float& direction)
+{
+    int w = dx.cols;
+    int h = dx.rows;
+    vector<double> magNeighbour(9);
+    getMagNeighbourhood(dx, dy, p, w, h, magNeighbour);
+    vector<double> a(9);
+    get2ndFacetModelIn3x3(magNeighbour, a);
+
+    // Hessian eigen vector
+    double eigvec[2][2], eigval[2];
+    eigenvals(a, eigval, eigvec);
+    double t = 0.0;
+    double ny = eigvec[0][0];
+    double nx = eigvec[0][1];
+    if (eigval[0] < 0.0)
+    {
+        double rx = a[1], ry = a[2], rxy = a[4], rxx = a[3] * 2.0, ryy = a[5] * 2.0;
+        t = -(rx * nx + ry * ny) / (rxx * nx * nx + 2.0 * rxy * nx * ny + ryy * ny * ny);
+    }
+    double px = nx * t;
+    double py = ny * t;
+    float x = (float)p.x;
+    float y = (float)p.y;
+    if (fabs(px) <= 0.5 && fabs(py) <= 0.5)
+    {
+        x += (float)px;
+        y += (float)py;
+    }
+    subpix_p = Point2f(x, y);
+    response = (float)(a[0] / scale);
+    direction = (float)vector2angle(ny, nx);
+}
+
+void extractSubPixPoints(const Mat& dx, const Mat& dy, vector<vector<Point> >& contoursInPixel, vector<Contour>& contours)
 {
     int w = dx.cols;
     int h = dx.rows;
@@ -378,34 +412,7 @@ void extractSubPixPoints(Mat& dx, Mat& dy, vector<vector<Point> >& contoursInPix
 #endif
         for (int j = 0; j < (int)icontour.size(); ++j)
         {
-            vector<double> magNeighbour(9);
-            getMagNeighbourhood(dx, dy, icontour[j], w, h, magNeighbour);
-            vector<double> a(9);
-            get2ndFacetModelIn3x3(magNeighbour, a);
-
-            // Hessian eigen vector 
-            double eigvec[2][2], eigval[2];
-            eigenvals(a, eigval, eigvec);
-            double t = 0.0;
-            double ny = eigvec[0][0];
-            double nx = eigvec[0][1];
-            if (eigval[0] < 0.0)
-            {
-                double rx = a[1], ry = a[2], rxy = a[4], rxx = a[3] * 2.0, ryy = a[5] * 2.0;
-                t = -(rx * nx + ry * ny) / (rxx * nx * nx + 2.0 * rxy * nx * ny + ryy * ny * ny);
-            }
-            double px = nx * t;
-            double py = ny * t;
-            float x = (float)icontour[j].x;
-            float y = (float)icontour[j].y;
-            if (fabs(px) <= 0.5 && fabs(py) <= 0.5)
-            {
-                x += (float)px;
-                y += (float)py;
-            }
-            contour.points[j] = Point2f(x, y);
-            contour.response[j] = (float)(a[0] / scale);
-            contour.direction[j] = (float)vector2angle(ny, nx);
+            getSubPixPoint(dx, dy, icontour[j], contour.points[j], contour.response[j], contour.direction[j]);
         }
     }
 }
@@ -413,8 +420,7 @@ void extractSubPixPoints(Mat& dx, Mat& dy, vector<vector<Point> >& contoursInPix
 //---------------------------------------------------------------------
 //          INTERFACE FUNCTION
 //---------------------------------------------------------------------
-void EdgesSubPix(Mat& gray, double alpha, int low, int high,
-    vector<Contour>& contours, OutputArray hierarchy, int mode)
+void PrecomputeEdgesSubPix(const Mat& gray, double alpha, Mat& dx, Mat& dy)
 {
     Mat blur;
     GaussianBlur(gray, blur, Size(0, 0), alpha, alpha);
@@ -422,9 +428,15 @@ void EdgesSubPix(Mat& gray, double alpha, int low, int high,
     Mat d;
     getCannyKernel(d, alpha);
     Mat one = Mat::ones(Size(1, 1), CV_16S);
-    Mat dx, dy;
     sepFilter2D(blur, dx, CV_16S, d, one);
     sepFilter2D(blur, dy, CV_16S, one, d);
+}
+
+void EdgesSubPix(const Mat& gray, double alpha, int low, int high,
+    vector<Contour>& contours, OutputArray hierarchy, int mode)
+{
+    Mat dx, dy;
+    PrecomputeEdgesSubPix(gray, alpha, dx, dy);
 
     // non-maximum supression & hysteresis threshold
     Mat edge = Mat::zeros(gray.size(), CV_8UC1);
@@ -441,8 +453,75 @@ void EdgesSubPix(Mat& gray, double alpha, int low, int high,
 
 }
 
-void EdgesSubPix(Mat& gray, double alpha, int low, int high, vector<Contour>& contours)
+void EdgesSubPix(const Mat& gray, double alpha, int low, int high, vector<Contour>& contours)
 {
     vector<Vec4i> hierarchy;
     EdgesSubPix(gray, alpha, low, high, contours, hierarchy, RETR_LIST);
+}
+
+void RefineContourSubPix(const Mat& dx, const Mat& dy,
+    const std::vector<Point>& initialContour,
+    int searchRadius,
+    Contour& refinedContour)
+{
+    int n_points = static_cast<int>(initialContour.size());
+    if (n_points == 0) return;
+
+    refinedContour.points.resize(n_points);
+    refinedContour.direction.resize(n_points);
+    refinedContour.response.resize(n_points);
+
+    int width = dx.cols;
+    int height = dx.rows;
+
+    for (int i = 0; i < n_points; ++i)
+    {
+        Point p_i = initialContour[i];
+
+        // Estimate normal assuming a closed contour
+        Point p_prev = (i == 0) ? initialContour[n_points - 1] : initialContour[i - 1];
+        Point p_next = (i == n_points - 1) ? initialContour[0] : initialContour[i + 1];
+
+        Point2f tangent_dir(static_cast<float>(p_next.x - p_prev.x), static_cast<float>(p_next.y - p_prev.y));
+        float norm_tangent = static_cast<float>(norm(tangent_dir));
+        if (norm_tangent > 1e-5) {
+            tangent_dir /= norm_tangent;
+        }
+        else {
+            // Fallback for coincident points
+            Point best_p = p_i;
+            getSubPixPoint(dx, dy, best_p, refinedContour.points[i], refinedContour.response[i], refinedContour.direction[i]);
+            continue;
+        }
+
+        Point2f normal_dir(-tangent_dir.y, tangent_dir.x);
+
+        // Search along normal
+        Point best_p = p_i;
+        double max_mag = getAmplitude(dx, dy, p_i.y, p_i.x);
+
+        for (int r = 1; r <= searchRadius; ++r)
+        {
+            // Search in positive and negative normal directions
+            for (int s = -1; s <= 1; s += 2)
+            {
+                Point p_search = p_i + Point(cvRound(normal_dir.x * r * s), cvRound(normal_dir.y * r * s));
+                if (p_search.x >= 0 && p_search.x < width && p_search.y >= 0 && p_search.y < height)
+                {
+                    double mag = getAmplitude(dx, dy, p_search.y, p_search.x);
+                    if (mag > max_mag)
+                    {
+                        max_mag = mag;
+                        best_p = p_search;
+                    }
+                }
+            }
+        }
+
+        // Refine best point to sub-pixel, ensuring it's not on the border for getMagNeighbourhood
+        best_p.x = std::max(1, std::min(width - 2, best_p.x));
+        best_p.y = std::max(1, std::min(height - 2, best_p.y));
+
+        getSubPixPoint(dx, dy, best_p, refinedContour.points[i], refinedContour.response[i], refinedContour.direction[i]);
+    }
 }

@@ -65,5 +65,14 @@ namespace OpenCvSharpEx.Internal
         public static extern ExceptionStatus cv2ex_EdgesSubPix(IntPtr gray, double alpha, int low, int high, out IntPtr contours, out int numContours, IntPtr hierarchy, int mode);
         [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern ExceptionStatus cv2ex_FreeContours(IntPtr contours, int numContours);
+
+        [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern ExceptionStatus cv2ex_PrecomputeEdgesSubPix(IntPtr gray, double alpha, IntPtr dx, IntPtr dy);
+        [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        internal static extern ExceptionStatus cv2ex_RefineContourSubPix(
+            IntPtr dx, IntPtr dy, [In] OpenCvSharp.Point[] initialContour, int contourLength, int searchRadius,
+            ref ContourC outRefinedContour);
+        [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        internal static extern ExceptionStatus cv2ex_FreeContourData(ref ContourC contour);
     }
 }

@@ -93,3 +93,74 @@ CVAPI(ExceptionStatus) cv2ex_FreeContours(Contour_C* contours, int num_contours)
     }
     END_WRAP
 }
+
+CVAPI(ExceptionStatus) cv2ex_PrecomputeEdgesSubPix(cv::Mat* gray, double alpha, cv::Mat* dx, cv::Mat* dy)
+{
+    BEGIN_WRAP
+    PrecomputeEdgesSubPix(*gray, alpha, *dx, *dy);
+    END_WRAP
+}
+
+CVAPI(ExceptionStatus) cv2ex_RefineContourSubPix(
+    cv::Mat* dx, cv::Mat* dy, cv::Point* initialContour, int contourLength, int searchRadius,
+    Contour_C* out_refinedContour)
+{
+    BEGIN_WRAP
+
+    if (initialContour == nullptr || contourLength <= 0 || out_refinedContour == nullptr)
+    {
+        if (out_refinedContour)
+        {
+            out_refinedContour->num_points = 0;
+            out_refinedContour->points = nullptr;
+            out_refinedContour->direction = nullptr;
+            out_refinedContour->response = nullptr;
+        }
+        return ExceptionStatus::NotOccurred;
+    }
+
+    std::vector<cv::Point> cpp_initialContour(initialContour, initialContour + contourLength);
+    Contour cpp_refinedContour;
+
+    RefineContourSubPix(*dx, *dy, cpp_initialContour, searchRadius, cpp_refinedContour);
+
+    // Convert result to C-style struct
+    out_refinedContour->num_points = static_cast<int>(cpp_refinedContour.points.size());
+    if (out_refinedContour->num_points > 0)
+    {
+        size_t points_size = sizeof(cv::Point2f) * out_refinedContour->num_points;
+        out_refinedContour->points = (cv::Point2f*)CoTaskMemAlloc(points_size);
+        memcpy(out_refinedContour->points, cpp_refinedContour.points.data(), points_size);
+
+        size_t data_size = sizeof(float) * out_refinedContour->num_points;
+        out_refinedContour->direction = (float*)CoTaskMemAlloc(data_size);
+        memcpy(out_refinedContour->direction, cpp_refinedContour.direction.data(), data_size);
+
+        out_refinedContour->response = (float*)CoTaskMemAlloc(data_size);
+        memcpy(out_refinedContour->response, cpp_refinedContour.response.data(), data_size);
+    }
+    else
+    {
+        out_refinedContour->points = nullptr;
+        out_refinedContour->direction = nullptr;
+        out_refinedContour->response = nullptr;
+    }
+
+    END_WRAP
+}
+
+CVAPI(ExceptionStatus) cv2ex_FreeContourData(Contour_C* contour)
+{
+    BEGIN_WRAP
+    if (contour != nullptr)
+    {
+        if (contour->points) CoTaskMemFree(contour->points);
+        if (contour->direction) CoTaskMemFree(contour->direction);
+        if (contour->response) CoTaskMemFree(contour->response);
+        // Zero out to prevent double-free
+        contour->points = nullptr;
+        contour->direction = nullptr;
+        contour->response = nullptr;
+    }
+    END_WRAP
+}

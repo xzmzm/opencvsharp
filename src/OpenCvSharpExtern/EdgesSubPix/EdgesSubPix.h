@@ -10,11 +10,18 @@ struct Contour
     std::vector<float> response;
 };
 // only 8-bit
-void EdgesSubPix(cv::Mat& gray, double alpha, int low, int high,
+void EdgesSubPix(const cv::Mat& gray, double alpha, int low, int high,
     std::vector<Contour>& contours, cv::OutputArray hierarchy,
     int mode);
 
-void EdgesSubPix(cv::Mat& gray, double alpha, int low, int high,
+void EdgesSubPix(const cv::Mat& gray, double alpha, int low, int high,
     std::vector<Contour>& contours);
+
+void PrecomputeEdgesSubPix(const cv::Mat& gray, double alpha, cv::Mat& dx, cv::Mat& dy);
+
+void RefineContourSubPix(const cv::Mat& dx, const cv::Mat& dy,
+    const std::vector<cv::Point>& initialContour,
+    int searchRadius,
+    Contour& refinedContour);
 
 #endif // __EDGES_SUBPIX_H__
