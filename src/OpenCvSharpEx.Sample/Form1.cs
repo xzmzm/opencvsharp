@@ -241,11 +241,10 @@ namespace OpenCvSharpEx.Sample
                         if (!this.edgesSubPixSettings.RefineBinaryContours)
                         {
                             this.Log("Finding sub-pixel edges directly...");
-                            Cv2Ex.EdgesSubPix(gray,
+                            this.lastEdgesSubPixResult = Cv2Ex.EdgesSubPix(gray,
                                 this.edgesSubPixSettings.Alpha,
                                 this.edgesSubPixSettings.LowThreshold,
                                 this.edgesSubPixSettings.HighThreshold,
-                                out this.lastEdgesSubPixResult,
                                 null, // no hierarchy for now
                                 this.edgesSubPixSettings.RetrievalMode);
                             sw.Stop();
@@ -282,7 +281,7 @@ namespace OpenCvSharpEx.Sample
                                     foreach (var initialContour in binaryContours)
                                     {
                                         if (initialContour.Length < 3) continue; // Skip very small contours
-                                        Cv2Ex.RefineContourSubPix(dx, dy, initialContour, this.edgesSubPixSettings.SearchRadius, out var refinedContour);
+                                        var refinedContour = Cv2Ex.RefineContourSubPix(dx, dy, initialContour, this.edgesSubPixSettings.SearchRadius);
                                         if (refinedContour.Points.Length > 0)
                                         {
                                             refinedContours.Add(refinedContour);

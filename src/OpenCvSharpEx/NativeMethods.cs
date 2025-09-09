@@ -69,13 +69,17 @@ namespace OpenCvSharpEx.Internal
         [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern ExceptionStatus cv2ex_PrecomputeEdgesSubPix(IntPtr gray, double alpha, IntPtr dx, IntPtr dy);
         [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern ExceptionStatus cv2ex_PrecomputeEdgesSubPixBilateral(IntPtr gray, int d, double sigmaColor, double sigmaSpace,
+            double gradientAlpha, IntPtr dx, IntPtr dy);
+
+        [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         internal static extern ExceptionStatus cv2ex_RefineContourSubPix(
-            IntPtr dx, IntPtr dy, [In] OpenCvSharp.Point[] initialContour, int contourLength, int searchRadius,
+            IntPtr dx, IntPtr dy, [In] OpenCvSharp.Point[] initialContour, int contourLength, int searchRadius, [MarshalAs(UnmanagedType.I1)] bool fixCorners,
             ref ContourC outRefinedContour);
         [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         internal static extern ExceptionStatus cv2ex_RefineContoursSubPix(
             IntPtr dx, IntPtr dy, [In] OpenCvSharp.Point[] initialContoursData, [In] int[] contourLengths, int numContours,
-            int searchRadius,
+            int searchRadius, [MarshalAs(UnmanagedType.I1)] bool fixCorners,
             out IntPtr outRefinedContours, out int outNumContours);
         [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         internal static extern ExceptionStatus cv2ex_FreeContourData(ref ContourC contour);

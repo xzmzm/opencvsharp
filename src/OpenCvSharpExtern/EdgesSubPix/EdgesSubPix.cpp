@@ -432,6 +432,20 @@ void PrecomputeEdgesSubPix(const Mat& gray, double alpha, Mat& dx, Mat& dy)
     sepFilter2D(blur, dy, CV_16S, one, d);
 }
 
+void PrecomputeEdgesSubPixBilateral(const Mat& gray, int d, double sigmaColor, double sigmaSpace,
+    double gradientAlpha, Mat& dx, Mat& dy)
+{
+    Mat blur;
+    // Use Bilateral Filter for edge-preserving smoothing
+    bilateralFilter(gray, blur, d, sigmaColor, sigmaSpace);
+
+    Mat gradient_kernel;
+    getCannyKernel(gradient_kernel, gradientAlpha);
+    Mat one = Mat::ones(Size(1, 1), CV_16S);
+    sepFilter2D(blur, dx, CV_16S, gradient_kernel, one);
+    sepFilter2D(blur, dy, CV_16S, one, gradient_kernel);
+}
+
 void EdgesSubPix(const Mat& gray, double alpha, int low, int high,
     vector<Contour>& contours, OutputArray hierarchy, int mode)
 {
@@ -462,7 +476,8 @@ void EdgesSubPix(const Mat& gray, double alpha, int low, int high, vector<Contou
 void RefineContourSubPix(const Mat& dx, const Mat& dy,
     const std::vector<Point>& initialContour,
     int searchRadius,
-    Contour& refinedContour)
+    Contour& refinedContour,
+    bool fixCorners)
 {
     int n_points = static_cast<int>(initialContour.size());
     if (n_points == 0) return;
@@ -524,12 +539,48 @@ void RefineContourSubPix(const Mat& dx, const Mat& dy,
 
         getSubPixPoint(dx, dy, best_p, refinedContour.points[i], refinedContour.response[i], refinedContour.direction[i]);
     }
+
+    // Post-process to fix intersections at sharp corners
+    if (fixCorners && n_points > 2)
+    {
+        std::vector<Point2f> smoothed_points = refinedContour.points;
+        bool changed = false;
+        for (int i = 0; i < n_points; ++i)
+        {
+            // use original refined points for calculation
+            const Point2f& p_prev = refinedContour.points[(i - 1 + n_points) % n_points];
+            const Point2f& p_curr = refinedContour.points[i];
+            const Point2f& p_next = refinedContour.points[(i + 1) % n_points];
+
+            Point2f v1 = p_prev - p_curr;
+            Point2f v2 = p_next - p_curr;
+
+            float mag1_sq = v1.x*v1.x + v1.y*v1.y;
+            float mag2_sq = v2.x*v2.x + v2.y*v2.y;
+
+            if (mag1_sq > 1e-6 && mag2_sq > 1e-6) {
+                float dot_product = v1.x * v2.x + v1.y * v2.y;
+                float cos_angle = dot_product / sqrt(mag1_sq * mag2_sq);
+
+                // if angle < 90 degrees
+                if (cos_angle > 0)
+                {
+                     smoothed_points[i] = p_prev * 0.25f + p_curr * 0.5f + p_next * 0.25f;
+                     changed = true;
+                }
+            }
+        }
+        if (changed) {
+            refinedContour.points = smoothed_points;
+        }
+    }
 }
 
 void RefineContoursSubPix(const cv::Mat& dx, const cv::Mat& dy,
     const std::vector<std::vector<cv::Point>>& initialContours,
     int searchRadius,
-    std::vector<Contour>& refinedContours)
+    std::vector<Contour>& refinedContours,
+    bool fixCorners)
 {
     size_t numContours = initialContours.size();
     if (numContours == 0) return;
@@ -541,6 +592,6 @@ void RefineContoursSubPix(const cv::Mat& dx, const cv::Mat& dy,
 #endif
     for (int i = 0; i < static_cast<int>(numContours); ++i)
     {
-        RefineContourSubPix(dx, dy, initialContours[i], searchRadius, refinedContours[i]);
+        RefineContourSubPix(dx, dy, initialContours[i], searchRadius, refinedContours[i], fixCorners);
     }
 }

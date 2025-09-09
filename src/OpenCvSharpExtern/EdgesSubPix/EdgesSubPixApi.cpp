@@ -101,9 +101,18 @@ CVAPI(ExceptionStatus) cv2ex_PrecomputeEdgesSubPix(cv::Mat* gray, double alpha, 
     END_WRAP
 }
 
+CVAPI(ExceptionStatus) cv2ex_PrecomputeEdgesSubPixBilateral(cv::Mat* gray, int d, double sigmaColor, double sigmaSpace,
+    double gradientAlpha, cv::Mat* dx, cv::Mat* dy)
+{
+    BEGIN_WRAP
+    PrecomputeEdgesSubPixBilateral(*gray, d, sigmaColor, sigmaSpace, gradientAlpha, *dx, *dy);
+    END_WRAP
+}
+
+
 CVAPI(ExceptionStatus) cv2ex_RefineContourSubPix(
     cv::Mat* dx, cv::Mat* dy, cv::Point* initialContour, int contourLength, int searchRadius,
-    Contour_C* out_refinedContour)
+    bool fixCorners, Contour_C* out_refinedContour)
 {
     BEGIN_WRAP
 
@@ -122,7 +131,7 @@ CVAPI(ExceptionStatus) cv2ex_RefineContourSubPix(
     std::vector<cv::Point> cpp_initialContour(initialContour, initialContour + contourLength);
     Contour cpp_refinedContour;
 
-    RefineContourSubPix(*dx, *dy, cpp_initialContour, searchRadius, cpp_refinedContour);
+    RefineContourSubPix(*dx, *dy, cpp_initialContour, searchRadius, cpp_refinedContour, fixCorners);
 
     // Convert result to C-style struct
     out_refinedContour->num_points = static_cast<int>(cpp_refinedContour.points.size());
@@ -152,7 +161,7 @@ CVAPI(ExceptionStatus) cv2ex_RefineContourSubPix(
 CVAPI(ExceptionStatus) cv2ex_RefineContoursSubPix(
     cv::Mat* dx, cv::Mat* dy,
     cv::Point* initialContoursData, int* contourLengths, int numContours,
-    int searchRadius,
+    int searchRadius, bool fixCorners,
     Contour_C** out_refinedContours, int* out_num_contours)
 {
     BEGIN_WRAP
@@ -177,7 +186,7 @@ CVAPI(ExceptionStatus) cv2ex_RefineContoursSubPix(
     }
 
     std::vector<Contour> cpp_refinedContours;
-    RefineContoursSubPix(*dx, *dy, cpp_initialContours, searchRadius, cpp_refinedContours);
+    RefineContoursSubPix(*dx, *dy, cpp_initialContours, searchRadius, cpp_refinedContours, fixCorners);
 
     // Convert result to C-style array of structs
     *out_num_contours = static_cast<int>(cpp_refinedContours.size());

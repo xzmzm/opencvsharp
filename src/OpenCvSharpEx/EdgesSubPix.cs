@@ -45,15 +45,14 @@ namespace OpenCvSharpEx
         /// <param name="alpha">The alpha parameter for the Gaussian filter (sigma).</param>
         /// <param name="low">The lower hysteresis threshold.</param>
         /// <param name="high">The higher hysteresis threshold.</param>
-        /// <param name="contours">Detected contours. Each contour is a vector of points.</param>
         /// <param name="hierarchy">Optional output vector containing information about the image topology.</param>
         /// <param name="mode">Contour retrieval mode.</param>
-        public static void EdgesSubPix(
+        /// <returns>Detected contours. Each contour is a vector of points.</returns>
+        public static Contour[] EdgesSubPix(
             InputArray gray,
             double alpha,
             int low,
             int high,
-            out Contour[] contours,
             OutputArray hierarchy,
             RetrievalModes mode)
         {
@@ -76,7 +75,7 @@ namespace OpenCvSharpEx
 
             if (numContours > 0 && contoursPtr != IntPtr.Zero)
             {
-                contours = new Contour[numContours];
+                var contours = new Contour[numContours];
                 var contourCSize = Marshal.SizeOf<ContourC>();
 
                 for (int i = 0; i < numContours; i++)
@@ -111,10 +110,11 @@ namespace OpenCvSharpEx
 
                 // Free the memory allocated in C++
                 NativeMethods.cv2ex_FreeContours(contoursPtr, numContours);
+                return contours;
             }
             else
             {
-                contours = Array.Empty<Contour>();
+                return Array.Empty<Contour>();
             }
         }
 
@@ -125,15 +125,14 @@ namespace OpenCvSharpEx
         /// <param name="alpha">The alpha parameter for the Gaussian filter (sigma).</param>
         /// <param name="low">The lower hysteresis threshold.</param>
         /// <param name="high">The higher hysteresis threshold.</param>
-        /// <param name="contours">Detected contours. Each contour is a vector of points.</param>
-        public static void EdgesSubPix(
+        /// <returns>Detected contours. Each contour is a vector of points.</returns>
+        public static Contour[] EdgesSubPix(
             InputArray gray,
             double alpha,
             int low,
-            int high,
-            out Contour[] contours)
+            int high)
         {
-            EdgesSubPix(gray, alpha, low, high, out contours, null, RetrievalModes.List);
+            return EdgesSubPix(gray, alpha, low, high, null, RetrievalModes.List);
         }
 
         /// <summary>
@@ -167,19 +166,61 @@ namespace OpenCvSharpEx
         }
 
         /// <summary>
+        /// Precomputes the gradient maps (dx, dy) using an edge-preserving bilateral filter.
+        /// This is useful when refining multiple contours on the same image to avoid redundant computations
+        /// and to prevent the inward shift of edges on curved objects caused by Gaussian blurring.
+        /// </summary>
+        /// <param name="gray">Input 8-bit single-channel image.</param>
+        /// <param name="diameter">Diameter of each pixel neighborhood that is used during filtering.</param>
+        /// <param name="sigmaColor">Filter sigma in the color space. A larger value of the parameter means that farther colors within the pixel neighborhood will be mixed together, resulting in larger areas of semi-equal color.</param>
+        /// <param name="sigmaSpace">Filter sigma in the coordinate space. A larger value of the parameter means that farther pixels will influence each other as long as their colors are close enough. </param>
+        /// <param name="gradientAlpha">The sigma parameter for the Canny-style gradient kernel applied after smoothing.</param>
+        /// <param name="dx">Output 16-bit signed integer (CV_16S) gradient map in X direction.</param>
+        /// <param name="dy">Output 16-bit signed integer (CV_16S) gradient map in Y direction.</param>
+        public static void PrecomputeEdgesSubPixBilateral(
+            InputArray gray,
+            int diameter,
+            double sigmaColor,
+            double sigmaSpace,
+            double gradientAlpha,
+            OutputArray dx,
+            OutputArray dy)
+        {
+            if (gray == null) throw new ArgumentNullException(nameof(gray));
+            if (dx == null) throw new ArgumentNullException(nameof(dx));
+            if (dy == null) throw new ArgumentNullException(nameof(dy));
+            gray.ThrowIfDisposed();
+            dx.ThrowIfNotReady();
+            dy.ThrowIfNotReady();
+
+            Mat grayMat = gray.GetMat();
+            Mat dxMat = dx.GetMat();
+            Mat dyMat = dy.GetMat();
+            NativeMethods.cv2ex_PrecomputeEdgesSubPixBilateral(grayMat.CvPtr, diameter, sigmaColor, sigmaSpace, gradientAlpha, dxMat.CvPtr, dyMat.CvPtr);
+
+            GC.KeepAlive(gray);
+            GC.KeepAlive(dx);
+            GC.KeepAlive(dy);
+            GC.KeepAlive(grayMat);
+            GC.KeepAlive(dxMat);
+            GC.KeepAlive(dyMat);
+        }
+
+        /// <summary>
         /// Refines a given integer-precision contour to sub-pixel accuracy.
         /// </summary>
         /// <param name="dx">Precomputed 16-bit signed integer (CV_16S) gradient map in X direction.</param>
         /// <param name="dy">Precomputed 16-bit signed integer (CV_16S) gradient map in Y direction.</param>
         /// <param name="initialContour">The integer-precision contour to refine.</param>
         /// <param name="searchRadius">The radius (in pixels) to search for the strongest edge along the normal of each contour point.</param>
-        /// <param name="refinedContour">The output sub-pixel accurate contour.</param>
-        public static void RefineContourSubPix(
+        /// <param name="fixCorners">Whether to apply a smoothing filter at sharp corners to prevent self-intersections. Default is false.</param>
+        /// <returns>The output sub-pixel accurate contour.</returns>
+        public static Contour RefineContourSubPix(
             InputArray dx,
             InputArray dy,
             Point[] initialContour,
             int searchRadius,
-            out Contour refinedContour)
+            bool fixCorners = false)
         {
             if (dx == null) throw new ArgumentNullException(nameof(dx));
             if (dy == null) throw new ArgumentNullException(nameof(dy));
@@ -191,10 +232,11 @@ namespace OpenCvSharpEx
             Mat dyMat = dy.GetMat();
 
             var contourC = new ContourC();
+            Contour refinedContour;
             try
             {
                 NativeMethods.cv2ex_RefineContourSubPix(
-                    dxMat.CvPtr, dyMat.CvPtr, initialContour, initialContour.Length, searchRadius,
+                    dxMat.CvPtr, dyMat.CvPtr, initialContour, initialContour.Length, searchRadius, fixCorners,
                     ref contourC);
 
                 refinedContour = new Contour();
@@ -229,6 +271,7 @@ namespace OpenCvSharpEx
             GC.KeepAlive(dy);
             GC.KeepAlive(dxMat);
             GC.KeepAlive(dyMat);
+            return refinedContour;
         }
 
         /// <summary>
@@ -239,19 +282,50 @@ namespace OpenCvSharpEx
         /// <param name="initialContour">The integer-precision contour to refine.</param>
         /// <param name="alpha">The alpha parameter for the Gaussian filter (sigma).</param>
         /// <param name="searchRadius">The radius (in pixels) to search for the strongest edge along the normal of each contour point.</param>
-        /// <param name="refinedContour">The output sub-pixel accurate contour.</param>
-        public static void RefineContourSubPix(
+        /// <param name="fixCorners">Whether to apply a smoothing filter at sharp corners to prevent self-intersections. Default is false.</param>
+        /// <returns>The output sub-pixel accurate contour.</returns>
+        public static Contour RefineContourSubPix(
             InputArray gray,
             Point[] initialContour,
             double alpha,
             int searchRadius,
-            out Contour refinedContour)
+            bool fixCorners = false)
         {
             using (var dx = new Mat())
             using (var dy = new Mat())
             {
                 PrecomputeEdgesSubPix(gray, alpha, dx, dy);
-                RefineContourSubPix(dx, dy, initialContour, searchRadius, out refinedContour);
+                return RefineContourSubPix(dx, dy, initialContour, searchRadius, fixCorners);
+            }
+        }
+
+        /// <summary>
+        /// Refines a given integer-precision contour to sub-pixel accuracy using an edge-preserving bilateral filter for preprocessing.
+        /// </summary>
+        /// <param name="gray">Input 8-bit single-channel image.</param>
+        /// <param name="initialContour">The integer-precision contour to refine.</param>
+        /// <param name="diameter">Diameter of each pixel neighborhood that is used during filtering.</param>
+        /// <param name="sigmaColor">Filter sigma in the color space.</param>
+        /// <param name="sigmaSpace">Filter sigma in the coordinate space.</param>
+        /// <param name="gradientAlpha">The sigma parameter for the Canny-style gradient kernel applied after smoothing.</param>
+        /// <param name="searchRadius">The radius (in pixels) to search for the strongest edge along the normal of each contour point.</param>
+        /// <param name="fixCorners">Whether to apply a smoothing filter at sharp corners to prevent self-intersections. Default is false.</param>
+        /// <returns>The output sub-pixel accurate contour.</returns>
+        public static Contour RefineContourSubPixBilateral(
+            InputArray gray,
+            Point[] initialContour,
+            int diameter,
+            double sigmaColor,
+            double sigmaSpace,
+            double gradientAlpha,
+            int searchRadius,
+            bool fixCorners = false)
+        {
+            using (var dx = new Mat())
+            using (var dy = new Mat())
+            {
+                PrecomputeEdgesSubPixBilateral(gray, diameter, sigmaColor, sigmaSpace, gradientAlpha, dx, dy);
+                return RefineContourSubPix(dx, dy, initialContour, searchRadius, fixCorners);
             }
         }
 
@@ -262,13 +336,14 @@ namespace OpenCvSharpEx
         /// <param name="dy">Precomputed 16-bit signed integer (CV_16S) gradient map in Y direction.</param>
         /// <param name="initialContours">The integer-precision contours to refine.</param>
         /// <param name="searchRadius">The radius (in pixels) to search for the strongest edge along the normal of each contour point.</param>
-        /// <param name="refinedContours">The output sub-pixel accurate contours.</param>
-        public static void RefineContourSubPix(
+        /// <param name="fixCorners">Whether to apply a smoothing filter at sharp corners to prevent self-intersections. Default is false.</param>
+        /// <returns>The output sub-pixel accurate contours.</returns>
+        public static Contour[] RefineContourSubPix(
             InputArray dx,
             InputArray dy,
             System.Collections.Generic.IEnumerable<Point[]> initialContours,
             int searchRadius,
-            out Contour[] refinedContours)
+            bool fixCorners = false)
         {
             if (dx == null) throw new ArgumentNullException(nameof(dx));
             if (dy == null) throw new ArgumentNullException(nameof(dy));
@@ -280,8 +355,7 @@ namespace OpenCvSharpEx
             int numContours = initialContoursArray.Length;
             if (numContours == 0)
             {
-                refinedContours = Array.Empty<Contour>();
-                return;
+                return Array.Empty<Contour>();
             }
 
             var contourLengths = new int[numContours];
@@ -309,9 +383,10 @@ namespace OpenCvSharpEx
             NativeMethods.cv2ex_RefineContoursSubPix(
                 dxMat.CvPtr, dyMat.CvPtr,
                 contoursData, contourLengths, numContours,
-                searchRadius,
+                searchRadius, fixCorners,
                 out var contoursPtr, out var outNumContours);
 
+            Contour[] refinedContours;
             if (outNumContours > 0 && contoursPtr != IntPtr.Zero)
             {
                 refinedContours = new Contour[outNumContours];
@@ -354,6 +429,7 @@ namespace OpenCvSharpEx
             GC.KeepAlive(dy);
             GC.KeepAlive(dxMat);
             GC.KeepAlive(dyMat);
+            return refinedContours;
         }
 
         /// <summary>
@@ -364,19 +440,50 @@ namespace OpenCvSharpEx
         /// <param name="initialContours">The integer-precision contours to refine.</param>
         /// <param name="alpha">The alpha parameter for the Gaussian filter (sigma).</param>
         /// <param name="searchRadius">The radius (in pixels) to search for the strongest edge along the normal of each contour point.</param>
-        /// <param name="refinedContours">The output sub-pixel accurate contours.</param>
-        public static void RefineContourSubPix(
+        /// <param name="fixCorners">Whether to apply a smoothing filter at sharp corners to prevent self-intersections. Default is false.</param>
+        /// <returns>The output sub-pixel accurate contours.</returns>
+        public static Contour[] RefineContourSubPix(
             InputArray gray,
             System.Collections.Generic.IEnumerable<Point[]> initialContours,
             double alpha,
             int searchRadius,
-            out Contour[] refinedContours)
+            bool fixCorners = false)
         {
             using (var dx = new Mat())
             using (var dy = new Mat())
             {
                 PrecomputeEdgesSubPix(gray, alpha, dx, dy);
-                RefineContourSubPix(dx, dy, initialContours, searchRadius, out refinedContours);
+                return RefineContourSubPix(dx, dy, initialContours, searchRadius, fixCorners);
+            }
+        }
+
+        /// <summary>
+        /// Refines given integer-precision contours to sub-pixel accuracy using an edge-preserving bilateral filter for preprocessing.
+        /// </summary>
+        /// <param name="gray">Input 8-bit single-channel image.</param>
+        /// <param name="initialContours">The integer-precision contours to refine.</param>
+        /// <param name="diameter">Diameter of each pixel neighborhood that is used during filtering.</param>
+        /// <param name="sigmaColor">Filter sigma in the color space.</param>
+        /// <param name="sigmaSpace">Filter sigma in the coordinate space.</param>
+        /// <param name="gradientAlpha">The sigma parameter for the Canny-style gradient kernel applied after smoothing.</param>
+        /// <param name="searchRadius">The radius (in pixels) to search for the strongest edge along the normal of each contour point.</param>
+        /// <param name="fixCorners">Whether to apply a smoothing filter at sharp corners to prevent self-intersections. Default is false.</param>
+        /// <returns>The output sub-pixel accurate contours.</returns>
+        public static Contour[] RefineContourSubPixBilateral(
+            InputArray gray,
+            System.Collections.Generic.IEnumerable<Point[]> initialContours,
+            int diameter,
+            double sigmaColor,
+            double sigmaSpace,
+            double gradientAlpha,
+            int searchRadius,
+            bool fixCorners = false)
+        {
+            using(var dx = new Mat())
+            using (var dy = new Mat())
+            {
+                PrecomputeEdgesSubPixBilateral(gray, diameter, sigmaColor, sigmaSpace, gradientAlpha, dx, dy);
+                return RefineContourSubPix(dx, dy, initialContours, searchRadius, fixCorners);
             }
         }
     }
