@@ -578,5 +578,164 @@ namespace OpenCvSharpEx
                 return RefineContourSubPix(dx, dy, initialContours, searchRadius, fixCorners);
             }
         }
+
+        /// <summary>
+        /// Precomputes the gradient maps (gradX, gradY) using Sobel operator.
+        /// This is useful when refining multiple contours on the same image to avoid redundant computations.
+        /// </summary>
+        /// <param name="gray">Input 8-bit single-channel image.</param>
+        /// <param name="gradX">Output 32-bit float (CV_32F) gradient map in X direction.</param>
+        /// <param name="gradY">Output 32-bit float (CV_32F) gradient map in Y direction.</param>
+        /// <param name="ksize">Aperture size for the Sobel operator.</param>
+        public static void PrecomputeGradientsSobel(InputArray gray, OutputArray gradX, OutputArray gradY, int ksize = 3)
+        {
+            if (gray == null) throw new ArgumentNullException(nameof(gray));
+            if (gradX == null) throw new ArgumentNullException(nameof(gradX));
+            if (gradY == null) throw new ArgumentNullException(nameof(gradY));
+            gray.ThrowIfDisposed();
+            gradX.ThrowIfNotReady();
+            gradY.ThrowIfNotReady();
+
+            Mat grayMat = gray.GetMat();
+            Mat gradXMat = gradX.GetMat();
+            Mat gradYMat = gradY.GetMat();
+            NativeMethods.cv2ex_PrecomputeGradientsSobel(grayMat.CvPtr, gradXMat.CvPtr, gradYMat.CvPtr, ksize);
+
+            GC.KeepAlive(gray);
+            GC.KeepAlive(gradX);
+            GC.KeepAlive(gradY);
+            GC.KeepAlive(grayMat);
+            GC.KeepAlive(gradXMat);
+            GC.KeepAlive(gradYMat);
+        }
+
+        /// <summary>
+        /// Refines a given integer-precision contour to sub-pixel accuracy using a weighted centroid of gradient magnitudes.
+        /// </summary>
+        /// <param name="gradX">Precomputed 32-bit float (CV_32F) gradient map in X direction.</param>
+        /// <param name="gradY">Precomputed 32-bit float (CV_32F) gradient map in Y direction.</param>
+        /// <param name="initialContour">The integer-precision contour to refine.</param>
+        /// <param name="windowSize">The size of the window around each point to calculate the centroid.</param>
+        /// <returns>The output sub-pixel accurate contour.</returns>
+        public static Contour RefineContourCentroid(
+            InputArray gradX,
+            InputArray gradY,
+            Point[] initialContour,
+            int windowSize)
+        {
+            if (gradX == null) throw new ArgumentNullException(nameof(gradX));
+            if (gradY == null) throw new ArgumentNullException(nameof(gradY));
+            if (initialContour == null) throw new ArgumentNullException(nameof(initialContour));
+            gradX.ThrowIfDisposed();
+            gradY.ThrowIfDisposed();
+
+            Mat gradXMat = gradX.GetMat();
+            Mat gradYMat = gradY.GetMat();
+
+            NativeMethods.cv2ex_RefineContourCentroid(
+                gradXMat.CvPtr, gradYMat.CvPtr, initialContour, initialContour.Length, windowSize,
+                out var contourC);
+
+            GC.KeepAlive(gradX);
+            GC.KeepAlive(gradY);
+            GC.KeepAlive(gradXMat);
+            GC.KeepAlive(gradYMat);
+            return new Contour(contourC);
+        }
+
+        /// <summary>
+        /// Refines a given integer-precision contour to sub-pixel accuracy using a weighted centroid of gradient magnitudes.
+        /// This is a convenience overload that computes Sobel gradients internally.
+        /// </summary>
+        /// <param name="gray">Input 8-bit single-channel image.</param>
+        /// <param name="initialContour">The integer-precision contour to refine.</param>
+        /// <param name="windowSize">The size of the window around each point to calculate the centroid.</param>
+        /// <returns>The output sub-pixel accurate contour.</returns>
+        public static Contour RefineContourCentroid(
+            InputArray gray,
+            Point[] initialContour,
+            int windowSize)
+        {
+            using (var gradX = new Mat())
+            using (var gradY = new Mat())
+            {
+                PrecomputeGradientsSobel(gray, gradX, gradY);
+                return RefineContourCentroid(gradX, gradY, initialContour, windowSize);
+            }
+        }
+
+        /// <summary>
+        /// Refines given integer-precision contours to sub-pixel accuracy using a weighted centroid of gradient magnitudes.
+        /// </summary>
+        /// <param name="gradX">Precomputed 32-bit float (CV_32F) gradient map in X direction.</param>
+        /// <param name="gradY">Precomputed 32-bit float (CV_32F) gradient map in Y direction.</param>
+        /// <param name="initialContours">The integer-precision contours to refine.</param>
+        /// <param name="windowSize">The size of the window around each point to calculate the centroid.</param>
+        /// <returns>The output sub-pixel accurate contours.</returns>
+        public static Contour[] RefineContoursCentroid(
+            InputArray gradX,
+            InputArray gradY,
+            System.Collections.Generic.IEnumerable<Point[]> initialContours,
+            int windowSize)
+        {
+            if (gradX == null) throw new ArgumentNullException(nameof(gradX));
+            if (gradY == null) throw new ArgumentNullException(nameof(gradY));
+            if (initialContours == null) throw new ArgumentNullException(nameof(initialContours));
+            gradX.ThrowIfDisposed();
+            gradY.ThrowIfDisposed();
+
+            var initialContoursArray = System.Linq.Enumerable.ToArray(initialContours);
+            int numContours = initialContoursArray.Length;
+            if (numContours == 0) return Array.Empty<Contour>();
+
+            var contourLengths = new int[numContours];
+            int totalPoints = 0;
+            for (int i = 0; i < numContours; i++)
+            {
+                contourLengths[i] = initialContoursArray[i]?.Length ?? 0;
+                totalPoints += contourLengths[i];
+            }
+
+            var contoursData = new Point[totalPoints];
+            int currentPos = 0;
+            for (int i = 0; i < numContours; i++)
+            {
+                if (contourLengths[i] > 0)
+                {
+                    Array.Copy(initialContoursArray[i], 0, contoursData, currentPos, contourLengths[i]);
+                    currentPos += contourLengths[i];
+                }
+            }
+
+            Mat gradXMat = gradX.GetMat();
+            Mat gradYMat = gradY.GetMat();
+
+            NativeMethods.cv2ex_RefineContoursCentroid(
+                gradXMat.CvPtr, gradYMat.CvPtr,
+                contoursData, contourLengths, numContours, windowSize,
+                out var contoursPtr, out var outNumContours);
+
+            // This part is similar to RefineContourSubPix, could be refactored
+            if (outNumContours > 0 && contoursPtr != IntPtr.Zero) {
+                try
+                {
+                    var refinedContours = new Contour[outNumContours];
+                    var contourCSize = Marshal.SizeOf<ContourC>();
+
+                    for (int i = 0; i < outNumContours; i++)
+                    {
+                        IntPtr currentContourPtr = new IntPtr(contoursPtr.ToInt64() + i * contourCSize);
+                        var contourC = Marshal.PtrToStructure<ContourC>(currentContourPtr);
+                        refinedContours[i] = new Contour(contourC);
+                    }
+                    return refinedContours;
+                }
+                finally
+                {
+                    NativeMethods.cv2ex_FreeContours(contoursPtr, outNumContours);
+                }
+            }
+            return Array.Empty<Contour>();
+        }
     }
 }

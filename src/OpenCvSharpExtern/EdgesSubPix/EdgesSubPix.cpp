@@ -654,3 +654,98 @@ void RefineContoursSubPix(const cv::Mat& dx, const cv::Mat& dy,
         RefineContourSubPix(dx, dy, initialContours[i], searchRadius, refinedContours[i], fixCorners);
     }
 }
+
+void PrecomputeGradientsSobel(const cv::Mat& gray, cv::Mat& gradX, cv::Mat& gradY, int ksize)
+{
+    cv::Sobel(gray, gradX, CV_32F, 1, 0, ksize);
+    cv::Sobel(gray, gradY, CV_32F, 0, 1, ksize);
+}
+
+void RefineContourCentroid(const cv::Mat& gradX, const cv::Mat& gradY,
+    const std::vector<cv::Point>& initialContour,
+    int windowSize,
+    Contour& refinedContour)
+{
+    const int n_points = static_cast<int>(initialContour.size());
+    if (n_points == 0) return;
+
+    refinedContour.points.resize(n_points);
+    refinedContour.intPoints = initialContour;
+    refinedContour.normal_angles.assign(n_points, 0.0f);
+    refinedContour.response.assign(n_points, 0.0f);
+
+    const int halfWindow = windowSize / 2;
+    const int imgWidth = gradX.cols;
+    const int imgHeight = gradX.rows;
+
+#if defined(_OPENMP) && defined(NDEBUG)
+#pragma omp parallel for
+#endif
+    for (int i = 0; i < n_points; ++i)
+    {
+        const cv::Point p = initialContour[i];
+
+        const int x1 = std::max(p.x - halfWindow, 0);
+        const int y1 = std::max(p.y - halfWindow, 0);
+        const int x2 = std::min(p.x + halfWindow + 1, imgWidth);
+        const int y2 = std::min(p.y + halfWindow + 1, imgHeight);
+
+        if ((x2 - x1) < windowSize || (y2 - y1) < windowSize)
+        {
+            refinedContour.points[i] = cv::Point2f(static_cast<float>(p.x), static_cast<float>(p.y));
+            continue;
+        }
+
+        float sumWeight = 0.0f;
+        float sumX = 0.0f;
+        float sumY = 0.0f;
+
+        for (int y = y1; y < y2; ++y)
+        {
+            const float* gx_row = gradX.ptr<float>(y);
+            const float* gy_row = gradY.ptr<float>(y);
+            for (int x = x1; x < x2; ++x)
+            {
+                const float gx = gx_row[x];
+                const float gy = gy_row[x];
+                const float magnitude = sqrtf(gx * gx + gy * gy);
+
+                if (magnitude > FLT_EPSILON)
+                {
+                    sumWeight += magnitude;
+                    sumX += x * magnitude;
+                    sumY += y * magnitude;
+                }
+            }
+        }
+
+        if (sumWeight > FLT_EPSILON)
+        {
+            refinedContour.points[i] = cv::Point2f(sumX / sumWeight, sumY / sumWeight);
+        }
+        else
+        {
+            refinedContour.points[i] = cv::Point2f(static_cast<float>(p.x), static_cast<float>(p.y));
+        }
+    }
+}
+
+
+void RefineContoursCentroid(const cv::Mat& gradX, const cv::Mat& gradY,
+    const std::vector<std::vector<cv::Point>>& initialContours,
+    int windowSize,
+    std::vector<Contour>& refinedContours)
+{
+    size_t numContours = initialContours.size();
+    if (numContours == 0) return;
+
+    refinedContours.resize(numContours);
+
+#if defined(_OPENMP) && defined(NDEBUG)
+#pragma omp parallel for
+#endif
+    for (int i = 0; i < static_cast<int>(numContours); ++i)
+    {
+        RefineContourCentroid(gradX, gradY, initialContours[i], windowSize, refinedContours[i]);
+    }
+}

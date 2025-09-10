@@ -37,4 +37,17 @@ void RefineContoursSubPix(const cv::Mat& dx, const cv::Mat& dy,
     std::vector<Contour>& refinedContours,
     bool fixCorners = false);
 
+void RefineContourCentroid(const cv::Mat& gradX, const cv::Mat& gradY,
+    const std::vector<cv::Point>& initialContour,
+    int windowSize,
+    Contour& refinedContour);
+
+void RefineContoursCentroid(const cv::Mat& gradX, const cv::Mat& gradY,
+    const std::vector<std::vector<cv::Point>>& initialContours,
+    int windowSize,
+    std::vector<Contour>& refinedContours);
+
+void PrecomputeGradientsSobel(const cv::Mat& gray, cv::Mat& gradX, cv::Mat& gradY, int ksize = 3);
+
+
 #endif // __EDGES_SUBPIX_H__
