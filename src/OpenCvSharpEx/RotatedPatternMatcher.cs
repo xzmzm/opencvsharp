@@ -8,48 +8,12 @@ namespace OpenCvSharpEx
 {
     public class RotatedPatternMatcher : IDisposable
     {
+        private IntPtr rotatedPatternMatcherObj;
         public RotatedPatternMatcher()
         {
-
         }
-        private IntPtr rotatedPatternMatcherObj;
-        public double AcceptancePercentage
-        {
-            get;
-            set;
-        } = 90.0;
-        public double MinAngle
-        {
-            get;
-            set;
-        } = -180.0;
-        public double MaxAngle
-        {
-            get;
-            set;
-        } = 180.0;
-        public double AngleStep
-        {
-            get;
-            set;
-        } = 1.0;
-        public int MinReducedArea
-        {
-            get;
-            set;
-        } = 256;
 
-        public int MaxMatchCount
-        {
-            get;
-            set;
-        } = 10;
-        public double MaxOverlapRatio
-        {
-            get;
-            set;
-        } = 0.0;
-        public void Teach(Mat pattern)
+        public void Teach(Mat pattern, int pyramidLevels)
         {
             if (this.rotatedPatternMatcherObj != IntPtr.Zero)
             {
@@ -57,29 +21,41 @@ namespace OpenCvSharpEx
                 this.rotatedPatternMatcherObj = IntPtr.Zero;
             }
 
-            var ret = NativeMethods.rotatedPatternMatcher_RotatedPatternMatcher_new(pattern.CvPtr, this.MinAngle, this.MaxAngle, this.AngleStep, this.MinReducedArea, out this.rotatedPatternMatcherObj);
-        }
-        public void PreprocessPattern()
-        {
+            NativeMethods.rotatedPatternMatcher_RotatedPatternMatcher_new(out this.rotatedPatternMatcherObj);
+            if (this.rotatedPatternMatcherObj == IntPtr.Zero)
+                throw new OpenCvSharpException("Failed to create native RotatedPatternMatcher object.");
 
+            NativeMethods.rotatedPatternMatcher_RotatedPatternMatcher_teach(this.rotatedPatternMatcherObj, pattern.CvPtr, pyramidLevels);
         }
-        public RotationPatternMatcherResults[] Search(Mat image, bool refineResults = false)
+
+        public RotationPatternMatcherResults[] Search(
+            Mat image,
+            double acceptanceScore,
+            double minAngle,
+            double maxAngle,
+            double angleStep,
+            int maxMatchCount,
+            double maxOverlapRatio)
         {
             if (this.rotatedPatternMatcherObj == IntPtr.Zero)
                 throw new OpenCvSharpException("No pattern is taught yet.");
-            double score = this.AcceptancePercentage;
-            var ret = NativeMethods.rotatedPatternMatcher_RotatedPatternMatcher_search(this.rotatedPatternMatcherObj, image.CvPtr, this.AcceptancePercentage, this.MinAngle, this.MaxAngle, this.AngleStep, this.MaxMatchCount, this.MinReducedArea, this.MaxOverlapRatio, out var results, out var resultsLength);
+
+            var ret = NativeMethods.rotatedPatternMatcher_RotatedPatternMatcher_search(
+                this.rotatedPatternMatcherObj, image.CvPtr, acceptanceScore, minAngle, maxAngle, angleStep, maxMatchCount, maxOverlapRatio,
+                out IntPtr results, out int resultsLength);
+
             var r = new RotationPatternMatcherResults[resultsLength];
             var p = results;
             for (int i = 0; i < r.Length; ++i)
             {
                 r[i] = (RotationPatternMatcherResults)System.Runtime.InteropServices.Marshal.PtrToStructure(p, typeof(RotationPatternMatcherResults));
                 r[i].Bounds = r[i].RotatedBounds.BoundingRect2d();
-                p += System.Runtime.InteropServices.Marshal.SizeOf(typeof(RotationPatternMatcherResults));
+                p = new IntPtr(p.ToInt64() + System.Runtime.InteropServices.Marshal.SizeOf(typeof(RotationPatternMatcherResults)));
             }
             System.Runtime.InteropServices.Marshal.FreeCoTaskMem(results);
             return r;
         }
+
         ~RotatedPatternMatcher()
         {
             this.Dispose();

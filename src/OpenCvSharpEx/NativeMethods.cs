@@ -48,14 +48,14 @@ namespace OpenCvSharpEx.Internal
         [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern ExceptionStatus shapematcher_ShapeMatcher_getFeatures(IntPtr shapeMatcherObj, int templateIndex, [Out] Feature[] features, out int count);
         [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-        public static extern ExceptionStatus rotatedPatternMatcher_RotatedPatternMatcher_new(IntPtr pattern, double minAngle, double maxAngle, double angleStep, int minReducedArea, out IntPtr rotatedPatternMatcher);
+        public static extern ExceptionStatus rotatedPatternMatcher_RotatedPatternMatcher_new(out IntPtr rotatedPatternMatcher);
 
         [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern ExceptionStatus rotatedPatternMatcher_RotatedPatternMatcher_delete(IntPtr shapeMatcherObj);
         [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-        public static extern ExceptionStatus rotatedPatternMatcher_RotatedPatternMatcher_teach(IntPtr shapeMatcherObj, IntPtr pattern, double minAngle, double maxAngle, double angleStep, int minReducedArea);
+        public static extern ExceptionStatus rotatedPatternMatcher_RotatedPatternMatcher_teach(IntPtr shapeMatcherObj, IntPtr pattern, int pyramidLevels);
         [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-        public static extern ExceptionStatus rotatedPatternMatcher_RotatedPatternMatcher_search(IntPtr shapeMatcherObj, IntPtr image, double acceptancePercentage, double minAngle, double maxAngle, double angleStep, int maxMatchCount, int minReducedArea, double maxOverlapRatio,
+        public static extern ExceptionStatus rotatedPatternMatcher_RotatedPatternMatcher_search(IntPtr shapeMatcherObj, IntPtr image, double acceptancePercentage, double minAngle, double maxAngle, double angleStep, int maxMatchCount, double maxOverlapRatio,
             out IntPtr rotationPatternMatcherResults, out int rotationPatternMatcherResultsLength);
     }
 

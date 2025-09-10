@@ -1,12 +1,13 @@
 ﻿using System;
 using System.Diagnostics;
-using System.ComponentModel;
 using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Windows.Forms;
+using OpenCvSharpEx;
 using OpenCvSharp;
 using OpenCvSharp.Extensions;
+using System.ComponentModel;
 using System.Collections.Generic;
 
 namespace OpenCvSharpEx.Sample
@@ -37,10 +38,36 @@ namespace OpenCvSharpEx.Sample
         [Description("Enables an advanced corner-finding algorithm for refined contours. This fits lines to adjacent segments to find a precise corner, preventing inward distortion.")]
         public bool FixCorners { get; set; } = true;
     }
+
+    public class RotatedPatternMatcherSettings
+    {
+        [Description("The minimum score for a match to be considered valid (0-100).")]
+        public double AcceptanceScore { get; set; } = 90.0;
+
+        [Description("The minimum rotation angle to search for in degrees.")]
+        public double MinAngle { get; set; } = -180.0;
+
+        [Description("The maximum rotation angle to search for in degrees.")]
+        public double MaxAngle { get; set; } = 180.0;
+
+        [Description("The step size for angle search in degrees.")]
+        public double AngleStep { get; set; } = 1.0;
+
+        [Description("The maximum number of matches to find.")]
+        public int MaxMatchCount { get; set; } = 10;
+
+        [Description("The maximum allowed overlap ratio between found matches (0-1). A value of 0 means no overlap is allowed.")]
+        public double MaxOverlapRatio { get; set; } = 0.0;
+
+        [Description("The number of pyramid levels to use for matching. Higher values are faster but less accurate for small patterns.")]
+        public int PyramidLevels { get; set; } = 4;
+    }
+
     public partial class Form1 : Form
     {
         private ShapeMatcher shapeMatcher;
         private RotatedPatternMatcher rotatedPatternMatcher;
+        private RotatedPatternMatcherSettings rotatedPatternMatcherSettings;
         private EdgesSubPixSettings edgesSubPixSettings;
         private Mat patternMat;
         private Mat searchImageMat;
@@ -55,7 +82,8 @@ namespace OpenCvSharpEx.Sample
             this.propertyGridShapeMatcher.SelectedObject = this.shapeMatcher;
 
             this.rotatedPatternMatcher = new RotatedPatternMatcher();
-            this.propertyGridRotatedPatternMatcher.SelectedObject = this.rotatedPatternMatcher;
+            this.rotatedPatternMatcherSettings = new RotatedPatternMatcherSettings();
+            this.propertyGridRotatedPatternMatcher.SelectedObject = this.rotatedPatternMatcherSettings;
 
             this.edgesSubPixSettings = new EdgesSubPixSettings();
             this.propertyGridEdgesSubPix.SelectedObject = this.edgesSubPixSettings;
@@ -121,7 +149,7 @@ namespace OpenCvSharpEx.Sample
 
                     this.Log("Teaching pattern for Rotated Pattern Matcher...");
                     var sw = Stopwatch.StartNew();
-                    this.rotatedPatternMatcher.Teach(gray);
+                    this.rotatedPatternMatcher.Teach(gray, this.rotatedPatternMatcherSettings.PyramidLevels);
                     sw.Stop();
                     this.Log($"Teaching complete in {sw.ElapsedMilliseconds} ms.");
                 }
@@ -212,7 +240,14 @@ namespace OpenCvSharpEx.Sample
                     try
                     {
                         this.Log("Searching...");
-                        this.lastRotatedSearchResult = this.rotatedPatternMatcher.Search(gray);
+                        this.lastRotatedSearchResult = this.rotatedPatternMatcher.Search(
+                            gray,
+                            this.rotatedPatternMatcherSettings.AcceptanceScore,
+                            this.rotatedPatternMatcherSettings.MinAngle,
+                            this.rotatedPatternMatcherSettings.MaxAngle,
+                            this.rotatedPatternMatcherSettings.AngleStep,
+                            this.rotatedPatternMatcherSettings.MaxMatchCount,
+                            this.rotatedPatternMatcherSettings.MaxOverlapRatio);
                         sw.Stop();
 
                         if (this.lastRotatedSearchResult != null && this.lastRotatedSearchResult.Length > 0)
@@ -244,7 +279,8 @@ namespace OpenCvSharpEx.Sample
                         if (!this.edgesSubPixSettings.RefineBinaryContours)
                         {
                             this.Log("Finding sub-pixel edges directly...");
-                            this.lastEdgesSubPixResult = Cv2Ex.EdgesSubPix(gray,
+                            this.lastEdgesSubPixResult = Cv2Ex.EdgesSubPix(
+                                gray,
                                 this.edgesSubPixSettings.Alpha,
                                 this.edgesSubPixSettings.LowThreshold,
                                 this.edgesSubPixSettings.HighThreshold,
@@ -283,7 +319,7 @@ namespace OpenCvSharpEx.Sample
                                     Cv2Ex.PrecomputeEdgesSubPix(gray, this.edgesSubPixSettings.Alpha, dx, dy);
                                     foreach (var initialContour in binaryContours)
                                     {
-                                        if (initialContour.Length < 3) continue;
+                                        if (initialContour.Length < 3) continue; // Point[]
 
                                         // RefineContourSubPix now returns a disposable object
                                         var refinedContour = Cv2Ex.RefineContourSubPix(dx, dy, initialContour, this.edgesSubPixSettings.SearchRadius, this.edgesSubPixSettings.FixCorners);
@@ -406,7 +442,7 @@ namespace OpenCvSharpEx.Sample
                 var rng = new Random();
                 foreach (var contour in this.lastEdgesSubPixResult)
                 {
-                    if (contour.Length < 2) continue;
+                    if (contour.Length < 2) continue; // This is a Contour object
 
                     var color = new Scalar(rng.Next(0, 256), rng.Next(0, 256), rng.Next(0, 256));
                     var pointsSpan = contour.GetPoints();
@@ -441,7 +477,7 @@ namespace OpenCvSharpEx.Sample
             {
                 foreach (var contour in this.lastEdgesSubPixResult)
                 {
-                    contour?.Dispose();
+                    contour.Dispose();
                 }
                 this.lastEdgesSubPixResult = null;
             }
@@ -457,7 +493,7 @@ namespace OpenCvSharpEx.Sample
 
         private void OnRotatedPatternMatcherPropertyValueChanged(object s, PropertyValueChangedEventArgs e)
         {
-            if (this.rotatedPatternMatcher != null)
+            if (this.rotatedPatternMatcherSettings != null)
             {
                 this.Log($"Rotated Pattern Matcher property changed: {e.ChangedItem.Label} = {e.ChangedItem.Value}");
             }
