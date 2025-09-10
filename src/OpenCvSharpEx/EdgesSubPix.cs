@@ -1,29 +1,181 @@
-﻿﻿using System;
+﻿using System;
 using System.Runtime.InteropServices;
+using System.Security;
 using OpenCvSharp;
 using OpenCvSharpEx.Internal;
 
 namespace OpenCvSharpEx
 {
     /// <summary>
-    /// Represents a contour with sub-pixel accurate points.
+    /// Represents a contour with sub-pixel accurate points, wrapping unmanaged memory.
+    /// This class must be disposed to release the underlying memory.
     /// </summary>
-    public class Contour
+    public class Contour : IDisposable
     {
-        /// <summary>
-        /// The points of the contour with sub-pixel accuracy.
-        /// </summary>
-        public Point2f[] Points { get; internal set; }
+        private IntPtr dataPtr;
+        private readonly int numPoints;
+        private bool disposedValue;
+
+        internal unsafe Contour(ContourC c)
+        {
+            this.numPoints = c.NumPoints;
+            if (this.numPoints > 0)
+            {
+                // In C++, we allocated a single block and 'Points' points to the beginning of it.
+                this.dataPtr = c.Points;
+            }
+            else
+            {
+                this.dataPtr = IntPtr.Zero;
+            }
+        }
 
         /// <summary>
-        /// The angle of the normal vector at each point (in radians).
+        /// The number of points in the contour.
         /// </summary>
-        public float[] NormalAngles { get; internal set; }
+        public int Length => this.numPoints;
 
         /// <summary>
-        /// The response (magnitude) of the edge at each point.
+        /// Gets a value indicating whether the contour is empty.
         /// </summary>
-        public float[] Response { get; internal set; }
+        public bool IsEmpty => this.numPoints == 0;
+
+        private enum ContourDataType
+        {
+            Points,
+            NormalAngles,
+            Response,
+            IntPoints
+        }
+
+        private unsafe IntPtr GetDataPointer(ContourDataType type)
+        {
+            if (this.dataPtr == IntPtr.Zero)
+                return IntPtr.Zero;
+
+            var pointsBytes = (long)this.numPoints * sizeof(Point2f);
+            var anglesBytes = (long)this.numPoints * sizeof(float);
+            var responseBytes = (long)this.numPoints * sizeof(float);
+
+            switch (type)
+            {
+                case ContourDataType.Points: return this.dataPtr;
+                case ContourDataType.NormalAngles: return this.dataPtr + (int)pointsBytes;
+                case ContourDataType.Response: return this.dataPtr + (int)pointsBytes + (int)anglesBytes;
+                case ContourDataType.IntPoints: return this.dataPtr + (int)pointsBytes + (int)anglesBytes + (int)responseBytes;
+                default: throw new ArgumentOutOfRangeException(nameof(type));
+            }
+        }
+
+        /// <summary>
+        /// Gets a read-only span over the contour points.
+        /// </summary>
+        public unsafe ReadOnlySpan<Point2f> GetPoints()
+        {
+            if (this.disposedValue) throw new ObjectDisposedException(nameof(Contour));
+            if (this.IsEmpty) return ReadOnlySpan<Point2f>.Empty;
+            return new ReadOnlySpan<Point2f>(this.GetDataPointer(ContourDataType.Points).ToPointer(), this.numPoints);
+        }
+
+        /// <summary>
+        /// Gets a read-only span over the normal angles.
+        /// </summary>
+        public unsafe ReadOnlySpan<float> GetNormalAngles()
+        {
+            if (this.disposedValue) throw new ObjectDisposedException(nameof(Contour));
+            if (this.IsEmpty) return ReadOnlySpan<float>.Empty;
+            return new ReadOnlySpan<float>(this.GetDataPointer(ContourDataType.NormalAngles).ToPointer(), this.numPoints);
+        }
+
+        /// <summary>
+        /// Gets a read-only span over the edge responses.
+        /// </summary>
+        public unsafe ReadOnlySpan<float> GetResponse()
+        {
+            if (this.disposedValue) throw new ObjectDisposedException(nameof(Contour));
+            if (this.IsEmpty) return ReadOnlySpan<float>.Empty;
+            return new ReadOnlySpan<float>(this.GetDataPointer(ContourDataType.Response).ToPointer(), this.numPoints);
+        }
+
+        /// <summary>
+        /// Gets a read-only span over the integer-precision points.
+        /// </summary>
+        public unsafe ReadOnlySpan<Point> GetIntPoints()
+        {
+            if (this.disposedValue) throw new ObjectDisposedException(nameof(Contour));
+            if (this.IsEmpty) return ReadOnlySpan<Point>.Empty;
+            return new ReadOnlySpan<Point>(this.GetDataPointer(ContourDataType.IntPoints).ToPointer(), this.numPoints);
+        }
+
+        /// <summary>
+        /// Gets a copy of the contour points as an array.
+        /// This method is provided for compatibility with consumers that do not support ReadOnlySpan&lt;T&gt; (e.g., IronPython).
+        /// </summary>
+        /// <returns>A new array containing the points.</returns>
+        public Point2f[] GetPointsArray()
+        {
+            return this.GetPoints().ToArray();
+        }
+
+        /// <summary>
+        /// Gets a copy of the normal angles as an array.
+        /// This method is provided for compatibility with consumers that do not support ReadOnlySpan&lt;T&gt; (e.g., IronPython).
+        /// </summary>
+        /// <returns>A new array containing the normal angles.</returns>
+        public float[] GetNormalAnglesArray()
+        {
+            return this.GetNormalAngles().ToArray();
+        }
+
+        /// <summary>
+        /// Gets a copy of the edge responses as an array.
+        /// This method is provided for compatibility with consumers that do not support ReadOnlySpan&lt;T&gt; (e.g., IronPython).
+        /// </summary>
+        /// <returns>A new array containing the edge responses.</returns>
+        public float[] GetResponseArray()
+        {
+            return this.GetResponse().ToArray();
+        }
+
+        /// <summary>
+        /// Gets a copy of the integer-precision points as an array.
+        /// This method is provided for compatibility with consumers that do not support ReadOnlySpan&lt;T&gt; (e.g., IronPython).
+        /// </summary>
+        /// <returns>A new array containing the integer-precision points.</returns>
+        public Point[] GetIntPointsArray()
+        {
+            return this.GetIntPoints().ToArray();
+        }
+        
+        /// <summary>
+         /// Releases the unmanaged memory used by the contour.
+         /// </summary>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!this.disposedValue)
+            {
+                if (this.dataPtr != IntPtr.Zero)
+                {
+                    NativeMethods.cv2ex_FreeContourData(this.dataPtr);
+                    this.dataPtr = IntPtr.Zero;
+                }
+                this.disposedValue = true;
+            }
+        }
+
+        /// <summary>
+        /// Finalizer.
+        /// </summary>
+        ~Contour() => this.Dispose(disposing: false);
+
+        /// <summary>
+        /// Releases the unmanaged memory used by the contour.
+        /// </summary>
+        public void Dispose()
+        {
+            this.Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
     }
 
     // Internal struct for marshaling from native code
@@ -34,6 +186,7 @@ namespace OpenCvSharpEx
         public int NumPoints;
         public IntPtr NormalAngles;
         public IntPtr Response;
+        public IntPtr IntPoints;
     }
 
     public static partial class Cv2Ex
@@ -75,42 +228,26 @@ namespace OpenCvSharpEx
 
             if (numContours > 0 && contoursPtr != IntPtr.Zero)
             {
-                var contours = new Contour[numContours];
-                var contourCSize = Marshal.SizeOf<ContourC>();
-
-                for (int i = 0; i < numContours; i++)
+                try
                 {
-                    IntPtr currentContourPtr = new IntPtr(contoursPtr.ToInt64() + i * contourCSize);
-                    var contourC = Marshal.PtrToStructure<ContourC>(currentContourPtr);
+                    var contours = new Contour[numContours];
+                    var contourCSize = Marshal.SizeOf<ContourC>();
 
-                    var contour = new Contour
+                    for (int i = 0; i < numContours; i++)
                     {
-                        Points = new Point2f[contourC.NumPoints],
-                        NormalAngles = new float[contourC.NumPoints],
-                        Response = new float[contourC.NumPoints]
-                    };
+                        IntPtr currentContourPtr = new IntPtr(contoursPtr.ToInt64() + i * contourCSize);
+                        var contourC = Marshal.PtrToStructure<ContourC>(currentContourPtr);
 
-                    if (contourC.NumPoints > 0)
-                    {
-                        // Marshal points
-                        var point2fSize = Marshal.SizeOf<Point2f>();
-                        for (int j = 0; j < contourC.NumPoints; j++)
-                        {
-                            IntPtr p = new IntPtr(contourC.Points.ToInt64() + j * point2fSize);
-                            contour.Points[j] = Marshal.PtrToStructure<Point2f>(p);
-                        }
-
-                        // Marshal direction and response
-                        Marshal.Copy(contourC.NormalAngles, contour.NormalAngles, 0, contourC.NumPoints);
-                        Marshal.Copy(contourC.Response, contour.Response, 0, contourC.NumPoints);
+                        contours[i] = new Contour(contourC);
                     }
-
-                    contours[i] = contour;
+                    return contours;
                 }
-
-                // Free the memory allocated in C++
-                NativeMethods.cv2ex_FreeContours(contoursPtr, numContours);
-                return contours;
+                finally
+                {
+                    // Free the C-style array of structs, but not the data within each struct.
+                    // The Contour objects now own that memory.
+                    NativeMethods.cv2ex_FreeContours(contoursPtr, numContours);
+                }
             }
             else
             {
@@ -231,47 +368,15 @@ namespace OpenCvSharpEx
             Mat dxMat = dx.GetMat();
             Mat dyMat = dy.GetMat();
 
-            var contourC = new ContourC();
-            Contour refinedContour;
-            try
-            {
-                NativeMethods.cv2ex_RefineContourSubPix(
-                    dxMat.CvPtr, dyMat.CvPtr, initialContour, initialContour.Length, searchRadius, fixCorners,
-                    ref contourC);
+            NativeMethods.cv2ex_RefineContourSubPix(
+                dxMat.CvPtr, dyMat.CvPtr, initialContour, initialContour.Length, searchRadius, fixCorners,
+                out var contourC);
 
-                refinedContour = new Contour();
-                if (contourC.NumPoints > 0)
-                {
-                    refinedContour.Points = new Point2f[contourC.NumPoints];
-                    refinedContour.NormalAngles = new float[contourC.NumPoints];
-                    refinedContour.Response = new float[contourC.NumPoints];
-
-                    var point2fSize = Marshal.SizeOf<Point2f>();
-                    for (int j = 0; j < contourC.NumPoints; j++)
-                    {
-                        IntPtr p = new IntPtr(contourC.Points.ToInt64() + j * point2fSize);
-                        refinedContour.Points[j] = Marshal.PtrToStructure<Point2f>(p);
-                    }
-
-                    Marshal.Copy(contourC.NormalAngles, refinedContour.NormalAngles, 0, contourC.NumPoints);
-                    Marshal.Copy(contourC.Response, refinedContour.Response, 0, contourC.NumPoints);
-                }
-                else
-                {
-                    refinedContour.Points = Array.Empty<Point2f>();
-                    refinedContour.NormalAngles = Array.Empty<float>();
-                    refinedContour.Response = Array.Empty<float>();
-                }
-            }
-            finally
-            {
-                NativeMethods.cv2ex_FreeContourData(ref contourC);
-            }
             GC.KeepAlive(dx);
             GC.KeepAlive(dy);
             GC.KeepAlive(dxMat);
             GC.KeepAlive(dyMat);
-            return refinedContour;
+            return new Contour(contourC);
         }
 
         /// <summary>
@@ -387,38 +492,25 @@ namespace OpenCvSharpEx
                 out var contoursPtr, out var outNumContours);
 
             Contour[] refinedContours;
-            if (outNumContours > 0 && contoursPtr != IntPtr.Zero)
-            {
-                refinedContours = new Contour[outNumContours];
-                var contourCSize = Marshal.SizeOf<ContourC>();
-
-                for (int i = 0; i < outNumContours; i++)
+            if (outNumContours > 0 && contoursPtr != IntPtr.Zero) {
+                try
                 {
-                    IntPtr currentContourPtr = new IntPtr(contoursPtr.ToInt64() + i * contourCSize);
-                    var contourC = Marshal.PtrToStructure<ContourC>(currentContourPtr);
+                    refinedContours = new Contour[outNumContours];
+                    var contourCSize = Marshal.SizeOf<ContourC>();
 
-                    var contour = new Contour
+                    for (int i = 0; i < outNumContours; i++)
                     {
-                        Points = new Point2f[contourC.NumPoints],
-                        NormalAngles = new float[contourC.NumPoints],
-                        Response = new float[contourC.NumPoints]
-                    };
-
-                    if (contourC.NumPoints > 0)
-                    {
-                        var point2fSize = Marshal.SizeOf<Point2f>();
-                        for (int j = 0; j < contourC.NumPoints; j++)
-                        {
-                            IntPtr p = new IntPtr(contourC.Points.ToInt64() + j * point2fSize);
-                            contour.Points[j] = Marshal.PtrToStructure<Point2f>(p);
-                        }
-
-                        Marshal.Copy(contourC.NormalAngles, contour.NormalAngles, 0, contourC.NumPoints);
-                        Marshal.Copy(contourC.Response, contour.Response, 0, contourC.NumPoints);
+                        IntPtr currentContourPtr = new IntPtr(contoursPtr.ToInt64() + i * contourCSize);
+                        var contourC = Marshal.PtrToStructure<ContourC>(currentContourPtr);
+                        refinedContours[i] = new Contour(contourC);
                     }
-                    refinedContours[i] = contour;
                 }
-                NativeMethods.cv2ex_FreeContours(contoursPtr, outNumContours);
+                finally
+                {
+                    // Free the C-style array of structs, but not the data within each struct.
+                    // The Contour objects now own that memory.
+                    NativeMethods.cv2ex_FreeContours(contoursPtr, outNumContours);
+                }
             }
             else
             {
@@ -479,7 +571,7 @@ namespace OpenCvSharpEx
             int searchRadius,
             bool fixCorners = false)
         {
-            using(var dx = new Mat())
+            using (var dx = new Mat())
             using (var dy = new Mat())
             {
                 PrecomputeEdgesSubPixBilateral(gray, diameter, sigmaColor, sigmaSpace, gradientAlpha, dx, dy);

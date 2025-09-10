@@ -8,6 +8,7 @@ struct Contour
     std::vector<cv::Point2f> points;
     std::vector<float> normal_angles;
     std::vector<float> response;
+    std::vector<cv::Point> intPoints;
 };
 // only 8-bit
 void EdgesSubPix(const cv::Mat& gray, double alpha, int low, int high,

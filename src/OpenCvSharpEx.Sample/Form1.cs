@@ -280,14 +280,25 @@ namespace OpenCvSharpEx.Sample
                                     Cv2Ex.PrecomputeEdgesSubPix(gray, this.edgesSubPixSettings.Alpha, dx, dy);
                                     foreach (var initialContour in binaryContours)
                                     {
-                                        if (initialContour.Length < 3) continue; // Skip very small contours
+                                        if (initialContour.Length < 3) continue;
+
+                                        // RefineContourSubPix now returns a disposable object
                                         var refinedContour = Cv2Ex.RefineContourSubPix(dx, dy, initialContour, this.edgesSubPixSettings.SearchRadius);
-                                        if (refinedContour.Points.Length > 0)
+                                        if (!refinedContour.IsEmpty)
                                         {
                                             refinedContours.Add(refinedContour);
                                         }
+                                        else
+                                        {
+                                            // Dispose immediately if not being stored
+                                            refinedContour.Dispose();
+                                        }
                                     }
                                 }
+
+                                // Dispose previous results before assigning new ones
+                                this.DisposeLastEdgesSubPixResult();
+
                                 this.lastEdgesSubPixResult = refinedContours.ToArray();
                                 sw.Stop();
                                 this.Log($"Refinement complete in {sw.ElapsedMilliseconds} ms. Refined {this.lastEdgesSubPixResult.Length} contours.");
@@ -299,6 +310,7 @@ namespace OpenCvSharpEx.Sample
                     {
                         this.Log($"Error during edge detection: {ex.Message}");
                         this.lastEdgesSubPixResult = null;
+                        this.DisposeLastEdgesSubPixResult();
                     }
                 }
             }
@@ -391,10 +403,16 @@ namespace OpenCvSharpEx.Sample
                 var rng = new Random();
                 foreach (var contour in this.lastEdgesSubPixResult)
                 {
-                    if (contour.Points.Length < 2) continue;
+                    if (contour.Length < 2) continue;
 
                     var color = new Scalar(rng.Next(0, 256), rng.Next(0, 256), rng.Next(0, 256));
-                    var points = contour.Points.Select(p => (OpenCvSharp.Point)p).ToArray();
+                    var pointsSpan = contour.GetPoints();
+                    var points = new OpenCvSharp.Point[pointsSpan.Length];
+                    for (int i = 0; i < pointsSpan.Length; i++)
+                    {
+                        points[i] = (OpenCvSharp.Point)pointsSpan[i];
+                    }
+
                     Cv2.Polylines(resultMat, new[] { points }, false, color, 1, LineTypes.AntiAlias);
                 }
 
@@ -410,7 +428,20 @@ namespace OpenCvSharpEx.Sample
             this.rotatedPatternMatcher?.Dispose();
             this.patternMat?.Dispose();
             this.searchImageMat?.Dispose();
+            this.DisposeLastEdgesSubPixResult();
             this.pictureBox1.Image?.Dispose();
+        }
+
+        private void DisposeLastEdgesSubPixResult()
+        {
+            if (this.lastEdgesSubPixResult != null)
+            {
+                foreach (var contour in this.lastEdgesSubPixResult)
+                {
+                    contour?.Dispose();
+                }
+                this.lastEdgesSubPixResult = null;
+            }
         }
 
         private void OnPropertyValueChanged(object s, PropertyValueChangedEventArgs e)
@@ -452,6 +483,7 @@ namespace OpenCvSharpEx.Sample
                     this.Log("Using pattern image as source for edge detection.");
                     this.pictureBox1.Image?.Dispose();
                     this.pictureBox1.Image = this.searchImageMat.ToBitmap();
+                    this.DisposeLastEdgesSubPixResult();
                     this.lastEdgesSubPixResult = null;
                 }
             }

@@ -247,10 +247,15 @@ static void postCannyFilter(const Mat& src, Mat& dx, Mat& dy, int low, int high,
     }
 }
 
-static inline  double getAmplitude(const Mat& dx, const Mat& dy, int i, int j)
+static inline double getAmplitude(const Mat& dx, const Mat& dy, int i, int j)
 {
     Point2d mag(dx.at<short>(i, j), dy.at<short>(i, j));
     return norm(mag);
+}
+static inline double getAmplitude2(const Mat& dx, const Mat& dy, int i, int j)
+{
+    Point2d mag(dx.at<short>(i, j), dy.at<short>(i, j));
+    return (double)mag.x * mag.x + (double)mag.y * mag.y;
 }
 
 static inline void getMagNeighbourhood(const Mat& dx, const Mat& dy, const Point& p, int w, int h, vector<double>& mag)
@@ -407,11 +412,13 @@ void extractSubPixPoints(const Mat& dx, const Mat& dy, vector<vector<Point> >& c
         contour.points.resize(icontour.size());
         contour.response.resize(icontour.size());
         contour.normal_angles.resize(icontour.size());
+        contour.intPoints.resize(icontour.size());
 #if defined(_OPENMP) && defined(NDEBUG)
 #pragma omp parallel for
 #endif
         for (int j = 0; j < (int)icontour.size(); ++j)
         {
+            contour.intPoints[j] = icontour[j];
             getSubPixPoint(dx, dy, icontour[j], contour.points[j], contour.response[j], contour.normal_angles[j]);
         }
     }
@@ -485,6 +492,7 @@ void RefineContourSubPix(const Mat& dx, const Mat& dy,
     refinedContour.points.resize(n_points);
     refinedContour.normal_angles.resize(n_points);
     refinedContour.response.resize(n_points);
+    refinedContour.intPoints.resize(n_points);
 
     int width = dx.cols;
     int height = dx.rows;
@@ -513,7 +521,7 @@ void RefineContourSubPix(const Mat& dx, const Mat& dy,
 
         // Search along normal
         Point best_p = p_i;
-        double max_mag = getAmplitude(dx, dy, p_i.y, p_i.x);
+        double max_mag = getAmplitude2(dx, dy, p_i.y, p_i.x);
 
         for (int r = 1; r <= searchRadius; ++r)
         {
@@ -523,7 +531,7 @@ void RefineContourSubPix(const Mat& dx, const Mat& dy,
                 Point p_search = p_i + Point(cvRound(normal_dir.x * r * s), cvRound(normal_dir.y * r * s));
                 if (p_search.x >= 0 && p_search.x < width && p_search.y >= 0 && p_search.y < height)
                 {
-                    double mag = getAmplitude(dx, dy, p_search.y, p_search.x);
+                    double mag = getAmplitude2(dx, dy, p_search.y, p_search.x);
                     if (mag > max_mag)
                     {
                         max_mag = mag;
@@ -536,7 +544,7 @@ void RefineContourSubPix(const Mat& dx, const Mat& dy,
         // Refine best point to sub-pixel, ensuring it's not on the border for getMagNeighbourhood
         best_p.x = std::max(1, std::min(width - 2, best_p.x));
         best_p.y = std::max(1, std::min(height - 2, best_p.y));
-
+        refinedContour.intPoints[i] = best_p;
         getSubPixPoint(dx, dy, best_p, refinedContour.points[i], refinedContour.response[i], refinedContour.normal_angles[i]);
     }
 
