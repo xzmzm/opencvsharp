@@ -33,6 +33,9 @@ namespace OpenCvSharpEx.Sample
 
         [Description("Search radius in pixels for sub-pixel refinement. Used when RefineBinaryContours is true.")]
         public int SearchRadius { get; set; } = 3;
+
+        [Description("Enables an advanced corner-finding algorithm for refined contours. This fits lines to adjacent segments to find a precise corner, preventing inward distortion.")]
+        public bool FixCorners { get; set; } = true;
     }
     public partial class Form1 : Form
     {
@@ -283,7 +286,7 @@ namespace OpenCvSharpEx.Sample
                                         if (initialContour.Length < 3) continue;
 
                                         // RefineContourSubPix now returns a disposable object
-                                        var refinedContour = Cv2Ex.RefineContourSubPix(dx, dy, initialContour, this.edgesSubPixSettings.SearchRadius);
+                                        var refinedContour = Cv2Ex.RefineContourSubPix(dx, dy, initialContour, this.edgesSubPixSettings.SearchRadius, this.edgesSubPixSettings.FixCorners);
                                         if (!refinedContour.IsEmpty)
                                         {
                                             refinedContours.Add(refinedContour);

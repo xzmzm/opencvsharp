@@ -400,6 +400,36 @@ static void getSubPixPoint(const Mat& dx, const Mat& dy, const Point& p, Point2f
     normal_angle = (float)vector2angle(nx, ny);
 }
 
+// Helper function to find the intersection of two lines given in Hesse normal form
+// (vx, vy, x0, y0) from cv::fitLine.
+static bool findLineIntersection(const cv::Vec4f& line1, const cv::Vec4f& line2, cv::Point2f& intersection)
+{
+    float vx1 = line1[0], vy1 = line1[1], x1 = line1[2], y1 = line1[3];
+    float vx2 = line2[0], vy2 = line2[1], x2 = line2[2], y2 = line2[3];
+
+    // The lines are L1: (x1, y1) + t * (vx1, vy1) and L2: (x2, y2) + s * (vx2, vy2)
+    // We solve for the intersection point (x, y) where:
+    // x = x1 + t * vx1 = x2 + s * vx2
+    // y = y1 + t * vy1 = y2 + s * vy2
+    //
+    // This gives a system of linear equations for t and s:
+    // t * vx1 - s * vx2 = x2 - x1
+    // t * vy1 - s * vy2 = y2 - y1
+
+    float det = vx1 * (-vy2) - (-vx2) * vy1;
+
+    // Check if lines are parallel (determinant is close to zero)
+    if (std::abs(det) < 1e-6) {
+        return false;
+    }
+
+    float t = ( (x2 - x1) * (-vy2) - (-vx2) * (y2 - y1) ) / det;
+
+    intersection.x = x1 + t * vx1;
+    intersection.y = y1 + t * vy1;
+
+    return true;
+}
 void extractSubPixPoints(const Mat& dx, const Mat& dy, vector<vector<Point> >& contoursInPixel, vector<Contour>& contours)
 {
     int w = dx.cols;
@@ -548,39 +578,60 @@ void RefineContourSubPix(const Mat& dx, const Mat& dy,
         getSubPixPoint(dx, dy, best_p, refinedContour.points[i], refinedContour.response[i], refinedContour.normal_angles[i]);
     }
 
-    // Post-process to fix intersections at sharp corners
+    // If enabled, use a more robust method for corners by fitting lines to adjacent segments
+    // and finding their intersection. This avoids the "inward pull" of the simpler refinement.
     if (fixCorners && n_points > 2)
     {
-        std::vector<Point2f> smoothed_points = refinedContour.points;
-        bool changed = false;
+        const int fit_points_count = 5; // Number of points to use on each side of the corner for line fitting
+        const float corner_cos_threshold = 0.8f; // Cosine of angle threshold to detect a corner (e.g., 0.8 is ~36 deg)
+
+        if (n_points < 2 * fit_points_count + 1) return; // Not enough points for this method
+
+        std::vector<Point2f> final_points = refinedContour.points;
+
         for (int i = 0; i < n_points; ++i)
         {
-            // use original refined points for calculation
             const Point2f& p_prev = refinedContour.points[(i - 1 + n_points) % n_points];
             const Point2f& p_curr = refinedContour.points[i];
             const Point2f& p_next = refinedContour.points[(i + 1) % n_points];
 
             Point2f v1 = p_prev - p_curr;
             Point2f v2 = p_next - p_curr;
+            v1 /= static_cast<float>(norm(v1) + 1e-6);
+            v2 /= static_cast<float>(norm(v2) + 1e-6);
+
+            float cos_angle = v1.dot(v2);
 
             float mag1_sq = v1.x*v1.x + v1.y*v1.y;
             float mag2_sq = v2.x*v2.x + v2.y*v2.y;
 
-            if (mag1_sq > 1e-6 && mag2_sq > 1e-6) {
-                float dot_product = v1.x * v2.x + v1.y * v2.y;
-                float cos_angle = dot_product / sqrt(mag1_sq * mag2_sq);
+            // If it's a sharp corner
+            if (cos_angle > -corner_cos_threshold && cos_angle < corner_cos_threshold)
+            {
+                std::vector<Point2f> points1, points2;
+                points1.reserve(fit_points_count);
+                points2.reserve(fit_points_count);
 
-                // if angle < 90 degrees
-                if (cos_angle > 0)
+                for(int j = 1; j <= fit_points_count; ++j) {
+                    points1.push_back(refinedContour.points[(i - j + n_points) % n_points]);
+                    points2.push_back(refinedContour.points[(i + j) % n_points]);
+                }
+
+                Vec4f line1, line2;
+                fitLine(points1, line1, DIST_L2, 0, 0.01, 0.01);
+                fitLine(points2, line2, DIST_L2, 0, 0.01, 0.01);
+
+                Point2f intersection;
+                if (findLineIntersection(line1, line2, intersection))
                 {
-                     smoothed_points[i] = p_prev * 0.25f + p_curr * 0.5f + p_next * 0.25f;
-                     changed = true;
+                    // Check if intersection is reasonably close to the original point
+                    if (norm(intersection - p_curr) < searchRadius * 2.0) {
+                        final_points[i] = intersection;
+                    }
                 }
             }
         }
-        if (changed) {
-            refinedContour.points = smoothed_points;
-        }
+        refinedContour.points = final_points;
     }
 }
 
