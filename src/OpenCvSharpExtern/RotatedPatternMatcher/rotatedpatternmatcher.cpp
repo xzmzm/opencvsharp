@@ -6,7 +6,7 @@
 #define VISION_TOLERANCE 0.0000001
 #define D2R (CV_PI / 180.0)
 #define R2D (180.0 / CV_PI)
-#define MATCH_CANDIDATE_NUM 3
+#define MATCH_CANDIDATE_NUM 5
 
 #define SUBITEM_INDEX 0
 #define SUBITEM_SCORE 1
@@ -497,7 +497,7 @@ void MatchTemplate(cv::Mat &matSrc, s_TemplData *pTemplData, cv::Mat &matResult,
 
     CCOEFF_Denominator(matSrc, pTemplData, matResult, iLayer);
 }
-void GetRotatedROI(Mat &matSrc, Size size, Point2f ptLT, double dAngle, const Mat &matROI)
+void GetRotatedROI(Mat &matSrc, Size size, Point2f ptLT, double dAngle, Mat &matROI)
 {
     double dAngle_radian = dAngle * D2R;
     Point2f ptC((matSrc.cols - 1) / 2.0f, (matSrc.rows - 1) / 2.0f);
