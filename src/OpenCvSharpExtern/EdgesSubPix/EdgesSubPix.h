@@ -39,11 +39,13 @@ void RefineContoursSubPix(const cv::Mat& dx, const cv::Mat& dy,
 
 void RefineContourCentroid(const cv::Mat& gradX, const cv::Mat& gradY,
     const std::vector<cv::Point>& initialContour,
+    int searchRadius,
     int windowSize,
     Contour& refinedContour);
 
 void RefineContoursCentroid(const cv::Mat& gradX, const cv::Mat& gradY,
     const std::vector<std::vector<cv::Point>>& initialContours,
+    int searchRadius,
     int windowSize,
     std::vector<Contour>& refinedContours);
 

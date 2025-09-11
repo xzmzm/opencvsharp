@@ -183,6 +183,7 @@ CVAPI(ExceptionStatus) cv2ex_RefineContourSubPix(
 CVAPI(ExceptionStatus) cv2ex_RefineContourCentroid(
     cv::Mat* gradX, cv::Mat* gradY,
     cv::Point* initialContour, int contourLength,
+    int searchRadius,
     int windowSize,
     Contour_C* out_refinedContour)
 {
@@ -204,7 +205,7 @@ CVAPI(ExceptionStatus) cv2ex_RefineContourCentroid(
     std::vector<cv::Point> cpp_initialContour(initialContour, initialContour + contourLength);
     Contour cpp_refinedContour;
 
-    RefineContourCentroid(*gradX, *gradY, cpp_initialContour, windowSize, cpp_refinedContour);
+    RefineContourCentroid(*gradX, *gradY, cpp_initialContour, searchRadius, windowSize, cpp_refinedContour);
 
     // Convert result to C-style struct
     out_refinedContour->num_points = static_cast<int>(cpp_refinedContour.points.size());
@@ -243,6 +244,7 @@ CVAPI(ExceptionStatus) cv2ex_RefineContourCentroid(
 CVAPI(ExceptionStatus) cv2ex_RefineContoursCentroid(
     cv::Mat* gradX, cv::Mat* gradY,
     cv::Point* initialContoursData, int* contourLengths, int numContours,
+    int searchRadius,
     int windowSize,
     Contour_C** out_refinedContours, int* out_num_contours)
 {
@@ -267,7 +269,7 @@ CVAPI(ExceptionStatus) cv2ex_RefineContoursCentroid(
     }
 
     std::vector<Contour> cpp_refinedContours;
-    RefineContoursCentroid(*gradX, *gradY, cpp_initialContours, windowSize, cpp_refinedContours);
+    RefineContoursCentroid(*gradX, *gradY, cpp_initialContours, searchRadius, windowSize, cpp_refinedContours);
 
     *out_num_contours = static_cast<int>(cpp_refinedContours.size());
     if (*out_num_contours > 0)

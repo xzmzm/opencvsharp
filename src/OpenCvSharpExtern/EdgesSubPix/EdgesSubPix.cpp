@@ -663,6 +663,7 @@ void PrecomputeGradientsSobel(const cv::Mat& gray, cv::Mat& gradX, cv::Mat& grad
 
 void RefineContourCentroid(const cv::Mat& gradX, const cv::Mat& gradY,
     const std::vector<cv::Point>& initialContour,
+    int searchRadius,
     int windowSize,
     Contour& refinedContour)
 {
@@ -684,11 +685,51 @@ void RefineContourCentroid(const cv::Mat& gradX, const cv::Mat& gradY,
     for (int i = 0; i < n_points; ++i)
     {
         const cv::Point p = initialContour[i];
+        cv::Point center_p = p;
 
-        const int x1 = std::max(p.x - halfWindow, 0);
-        const int y1 = std::max(p.y - halfWindow, 0);
-        const int x2 = std::min(p.x + halfWindow + 1, imgWidth);
-        const int y2 = std::min(p.y + halfWindow + 1, imgHeight);
+        if (searchRadius > 0)
+        {
+            float gx = gradX.at<float>(p.y, p.x);
+            float gy = gradY.at<float>(p.y, p.x);
+            float mag = std::sqrt(gx * gx + gy * gy);
+
+            if (mag > 1e-6f)
+            {
+                float nx = gx / mag;
+                float ny = gy / mag;
+
+                float bestT = 0.0f;
+                float bestVal = 0.0f;
+
+                for (float t = -searchRadius; t <= searchRadius; t += 0.5f)
+                {
+                    float xf = p.x + t * nx;
+                    float yf = p.y + t * ny;
+
+                    if (xf < 1.0f || xf >= gradX.cols - 1.0f || yf < 1.0f || yf >= gradX.rows - 1.0f) continue;
+
+                    // Bilinear interpolation of gradients
+                    cv::Mat gx_mat, gy_mat;
+                    cv::getRectSubPix(gradX, cv::Size(1, 1), cv::Point2f(xf, yf), gx_mat);
+                    cv::getRectSubPix(gradY, cv::Size(1, 1), cv::Point2f(xf, yf), gy_mat);
+                    float gx_interp = gx_mat.at<float>(0, 0);
+                    float gy_interp = gy_mat.at<float>(0, 0);
+
+                    float val = std::sqrt(gx_interp * gx_interp + gy_interp * gy_interp);
+                    if (val > bestVal) {
+                        bestVal = val;
+                        bestT = t;
+                    }
+                }
+                center_p.x = cvRound(p.x + bestT * nx);
+                center_p.y = cvRound(p.y + bestT * ny);
+            }
+        }
+
+        const int x1 = std::max(center_p.x - halfWindow, 0);
+        const int y1 = std::max(center_p.y - halfWindow, 0);
+        const int x2 = std::min(center_p.x + halfWindow + 1, imgWidth);
+        const int y2 = std::min(center_p.y + halfWindow + 1, imgHeight);
 
         if ((x2 - x1) < windowSize || (y2 - y1) < windowSize)
         {
@@ -733,6 +774,7 @@ void RefineContourCentroid(const cv::Mat& gradX, const cv::Mat& gradY,
 
 void RefineContoursCentroid(const cv::Mat& gradX, const cv::Mat& gradY,
     const std::vector<std::vector<cv::Point>>& initialContours,
+    int searchRadius,
     int windowSize,
     std::vector<Contour>& refinedContours)
 {
@@ -746,6 +788,6 @@ void RefineContoursCentroid(const cv::Mat& gradX, const cv::Mat& gradY,
 #endif
     for (int i = 0; i < static_cast<int>(numContours); ++i)
     {
-        RefineContourCentroid(gradX, gradY, initialContours[i], windowSize, refinedContours[i]);
+        RefineContourCentroid(gradX, gradY, initialContours[i], searchRadius, windowSize, refinedContours[i]);
     }
 }

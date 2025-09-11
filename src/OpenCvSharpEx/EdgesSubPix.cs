@@ -615,12 +615,14 @@ namespace OpenCvSharpEx
         /// <param name="gradX">Precomputed 32-bit float (CV_32F) gradient map in X direction.</param>
         /// <param name="gradY">Precomputed 32-bit float (CV_32F) gradient map in Y direction.</param>
         /// <param name="initialContour">The integer-precision contour to refine.</param>
+        /// <param name="searchRadius">The radius (in pixels) to search for a better starting point along the gradient normal before centroid calculation. Use 0 to disable.</param>
         /// <param name="windowSize">The size of the window around each point to calculate the centroid.</param>
         /// <returns>The output sub-pixel accurate contour.</returns>
         public static Contour RefineContourCentroid(
             InputArray gradX,
             InputArray gradY,
             Point[] initialContour,
+            int searchRadius,
             int windowSize)
         {
             if (gradX == null) throw new ArgumentNullException(nameof(gradX));
@@ -633,7 +635,7 @@ namespace OpenCvSharpEx
             Mat gradYMat = gradY.GetMat();
 
             NativeMethods.cv2ex_RefineContourCentroid(
-                gradXMat.CvPtr, gradYMat.CvPtr, initialContour, initialContour.Length, windowSize,
+                gradXMat.CvPtr, gradYMat.CvPtr, initialContour, initialContour.Length, searchRadius, windowSize,
                 out var contourC);
 
             GC.KeepAlive(gradX);
@@ -641,6 +643,45 @@ namespace OpenCvSharpEx
             GC.KeepAlive(gradXMat);
             GC.KeepAlive(gradYMat);
             return new Contour(contourC);
+        }
+
+        /// <summary>
+        /// Refines a given integer-precision contour to sub-pixel accuracy using a weighted centroid of gradient magnitudes.
+        /// </summary>
+        /// <param name="gradX">Precomputed 32-bit float (CV_32F) gradient map in X direction.</param>
+        /// <param name="gradY">Precomputed 32-bit float (CV_32F) gradient map in Y direction.</param>
+        /// <param name="initialContour">The integer-precision contour to refine.</param>
+        /// <param name="windowSize">The size of the window around each point to calculate the centroid.</param>
+        /// <returns>The output sub-pixel accurate contour.</returns>
+        public static Contour RefineContourCentroid(
+            InputArray gradX,
+            InputArray gradY,
+            Point[] initialContour,
+            int windowSize)
+        {
+            return RefineContourCentroid(gradX, gradY, initialContour, 0, windowSize);
+        }
+
+        /// <summary>
+        /// Refines a given integer-precision contour to sub-pixel accuracy using a weighted centroid of gradient magnitudes.
+        /// This is a convenience overload that computes Sobel gradients internally.
+        /// </summary>
+        /// <param name="gray">Input 8-bit single-channel image.</param>
+        /// <param name="initialContour">The integer-precision contour to refine.</param>
+        /// <param name="windowSize">The size of the window around each point to calculate the centroid.</param>
+        /// <returns>The output sub-pixel accurate contour.</returns>
+        public static Contour RefineContourCentroid(
+            InputArray gray,
+            Point[] initialContour,
+            int searchRadius,
+            int windowSize)
+        {
+            using (var gradX = new Mat())
+            using (var gradY = new Mat())
+            {
+                PrecomputeGradientsSobel(gray, gradX, gradY);
+                return RefineContourCentroid(gradX, gradY, initialContour, searchRadius, windowSize);
+            }
         }
 
         /// <summary>
@@ -656,12 +697,7 @@ namespace OpenCvSharpEx
             Point[] initialContour,
             int windowSize)
         {
-            using (var gradX = new Mat())
-            using (var gradY = new Mat())
-            {
-                PrecomputeGradientsSobel(gray, gradX, gradY);
-                return RefineContourCentroid(gradX, gradY, initialContour, windowSize);
-            }
+            return RefineContourCentroid(gray, initialContour, 0, windowSize);
         }
 
         /// <summary>
@@ -670,12 +706,14 @@ namespace OpenCvSharpEx
         /// <param name="gradX">Precomputed 32-bit float (CV_32F) gradient map in X direction.</param>
         /// <param name="gradY">Precomputed 32-bit float (CV_32F) gradient map in Y direction.</param>
         /// <param name="initialContours">The integer-precision contours to refine.</param>
+        /// <param name="searchRadius">The radius (in pixels) to search for a better starting point along the gradient normal before centroid calculation. Use 0 to disable.</param>
         /// <param name="windowSize">The size of the window around each point to calculate the centroid.</param>
         /// <returns>The output sub-pixel accurate contours.</returns>
         public static Contour[] RefineContoursCentroid(
             InputArray gradX,
             InputArray gradY,
             System.Collections.Generic.IEnumerable<Point[]> initialContours,
+            int searchRadius,
             int windowSize)
         {
             if (gradX == null) throw new ArgumentNullException(nameof(gradX));
@@ -712,7 +750,7 @@ namespace OpenCvSharpEx
 
             NativeMethods.cv2ex_RefineContoursCentroid(
                 gradXMat.CvPtr, gradYMat.CvPtr,
-                contoursData, contourLengths, numContours, windowSize,
+                contoursData, contourLengths, numContours, searchRadius, windowSize,
                 out var contoursPtr, out var outNumContours);
 
             // This part is similar to RefineContourSubPix, could be refactored
@@ -737,5 +775,23 @@ namespace OpenCvSharpEx
             }
             return Array.Empty<Contour>();
         }
+
+        /// <summary>
+        /// Refines given integer-precision contours to sub-pixel accuracy using a weighted centroid of gradient magnitudes.
+        /// </summary>
+        /// <param name="gradX">Precomputed 32-bit float (CV_32F) gradient map in X direction.</param>
+        /// <param name="gradY">Precomputed 32-bit float (CV_32F) gradient map in Y direction.</param>
+        /// <param name="initialContours">The integer-precision contours to refine.</param>
+        /// <param name="windowSize">The size of the window around each point to calculate the centroid.</param>
+        /// <returns>The output sub-pixel accurate contours.</returns>
+        public static Contour[] RefineContoursCentroid(
+            InputArray gradX,
+            InputArray gradY,
+            System.Collections.Generic.IEnumerable<Point[]> initialContours,
+            int windowSize)
+        {
+            return RefineContoursCentroid(gradX, gradY, initialContours, 0, windowSize);
+        }
+
     }
 }

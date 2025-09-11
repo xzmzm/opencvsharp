@@ -89,12 +89,12 @@ namespace OpenCvSharpEx.Internal
             IntPtr gray, IntPtr gradX, IntPtr gradY, int ksize);
         [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         internal static extern ExceptionStatus cv2ex_RefineContourCentroid(
-            IntPtr gradX, IntPtr gradY, [In] OpenCvSharp.Point[] initialContour, int contourLength, int windowSize,
+            IntPtr gradX, IntPtr gradY, [In] OpenCvSharp.Point[] initialContour, int contourLength, int searchRadius, int windowSize,
             out ContourC outRefinedContour);
         [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         internal static extern ExceptionStatus cv2ex_RefineContoursCentroid(
             IntPtr gradX, IntPtr gradY, [In] OpenCvSharp.Point[] initialContoursData, [In] int[] contourLengths, int numContours,
-            int windowSize,
+            int searchRadius, int windowSize,
             out IntPtr outRefinedContours, out int outNumContours);
     }
 }
