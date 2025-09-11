@@ -6,7 +6,7 @@
 #define VISION_TOLERANCE 0.0000001
 #define D2R (CV_PI / 180.0)
 #define R2D (180.0 / CV_PI)
-#define MATCH_CANDIDATE_NUM 5
+#define MATCH_CANDIDATE_NUM 3
 
 #define SUBITEM_INDEX 0
 #define SUBITEM_SCORE 1
@@ -267,7 +267,7 @@ Point GetNextMaxLoc(Mat &matResult, Point ptMaxLoc, Size sizeTemplate, double &d
     return ptReturn;
 }
 
-bool SubPixEsimation(vector<s_MatchParameter> *vec, double *dNewX, double *dNewY, double *dNewAngle, double dAngleStep, int iMaxScoreIndex)
+bool SubPixEstimation(vector<s_MatchParameter> *vec, double *dNewX, double *dNewY, double *dNewAngle, double dAngleStep, int iMaxScoreIndex)
 {
     // Az=S, (A.T)Az=(A.T)s, z = ((A.T)A).inv (A.T)s
 
@@ -497,7 +497,7 @@ void MatchTemplate(cv::Mat &matSrc, s_TemplData *pTemplData, cv::Mat &matResult,
 
     CCOEFF_Denominator(matSrc, pTemplData, matResult, iLayer);
 }
-void GetRotatedROI(Mat &matSrc, Size size, Point2f ptLT, double dAngle, Mat &matROI)
+void GetRotatedROI(Mat &matSrc, Size size, Point2f ptLT, double dAngle, const Mat &matROI)
 {
     double dAngle_radian = dAngle * D2R;
     Point2f ptC((matSrc.cols - 1) / 2.0f, (matSrc.rows - 1) / 2.0f);
@@ -627,7 +627,10 @@ std::vector<RotationPatternMatcherResults> RotatedPatternMatcher::search(cv::Mat
     // Caculate lowest score at every layer
     vector<double> vecLayerScore(iTopLayer + 1, m_dScore);
     for (int iLayer = 1; iLayer <= iTopLayer; iLayer++)
-        vecLayerScore[iLayer] = vecLayerScore[iLayer - 1] * 0.9;
+    {
+        vecLayerScore[iLayer] = std::max(vecLayerScore[iLayer - 1] * 0.9, m_dScore * 0.85);
+        std::cout << "vecLayerScore " << iLayer << ": " << vecLayerScore[iLayer] << std::endl;
+    }
     std::cout << "m_dScore: " << m_dScore << std::endl;
     std::cout << "pTemplData->vecPyramid.size(): " << pTemplData->vecPyramid.size() << std::endl;
 
@@ -657,7 +660,7 @@ std::vector<RotationPatternMatcherResults> RotatedPatternMatcher::search(cv::Mat
         matR.at<double>(1, 2) += fTranslationY;
         warpAffine(vecMatSrcPyr[iTopLayer], matRotatedSrc, matR, sizeBest, INTER_LINEAR, BORDER_CONSTANT, Scalar(pTemplData->iBorderColor));
         // imwrite(string_format("K:\\prj\\orange\\trunk\\vision\\VisionLib\\VisionTest\\bin\\Debug\\images\\%i_%.3f.png", iTopLayer, vecAngles[i]), matRotatedSrc);
-        MatchTemplate(matRotatedSrc, pTemplData, matResult, iTopLayer, false);
+        MatchTemplate(matRotatedSrc, pTemplData, matResult, iTopLayer, true);
 
         if (matResult.empty())
             continue;
@@ -753,6 +756,7 @@ std::vector<RotationPatternMatcherResults> RotatedPatternMatcher::search(cv::Mat
     // for (int i = 0; i < iSearchSize; i++)
     {
         // std::cout << "vecMatchParameter[i].dMatchScore: " << i << " " << vecMatchParameter[i].dMatchScore << std::endl;
+        Mat matResult, matRotatedSrc;
         double dRAngle = -vecMatchParameter[i].dMatchAngle * D2R;
         Point2f ptLT = ptRotatePt2f(vecMatchParameter[i].pt, ptCenter, dRAngle);
 
@@ -791,9 +795,9 @@ std::vector<RotationPatternMatcherResults> RotatedPatternMatcher::search(cv::Mat
                 vector<s_MatchParameter> vecNewMatchParameter(iSize);
                 int iMaxScoreIndex = 0;
                 double dBigValue = -1;
+                //std::cout << "iLayer: " << iLayer << " iSize: " << iSize << std::endl;
                 for (int j = 0; j < iSize; j++)
                 {
-                    Mat matResult, matRotatedSrc;
                     double dMaxValue = 0;
                     Point ptMaxLoc;
                     GetRotatedROI(vecMatSrcPyr[iLayer], pTemplData->vecPyramid[iLayer].size(), ptLT * 2, vecAngles[j], matRotatedSrc);
@@ -802,7 +806,7 @@ std::vector<RotationPatternMatcherResults> RotatedPatternMatcher::search(cv::Mat
                     // matchTemplate (matRotatedSrc, pTemplData->vecPyramid[iLayer], matResult, CV_TM_CCOEFF_NORMED);
                     minMaxLoc(matResult, 0, &dMaxValue, 0, &ptMaxLoc);
                     vecNewMatchParameter[j] = s_MatchParameter(ptMaxLoc, dMaxValue, vecAngles[j]);
-
+                    //std::cout << "j: " << j  << " vecAngles[j]: " << vecAngles[j]  << " dMaxValue: " << dMaxValue<< std::endl;
                     if (vecNewMatchParameter[j].dMatchScore > dBigValue)
                     {
                         iMaxScoreIndex = j;
@@ -823,9 +827,15 @@ std::vector<RotationPatternMatcherResults> RotatedPatternMatcher::search(cv::Mat
                     break;
                 // 次像素估計
                 if (bSubPixelEstimation && iLayer == 0 && (!vecNewMatchParameter[iMaxScoreIndex].bPosOnBorder) && iMaxScoreIndex != 0 && iMaxScoreIndex != 2)
+             // We need to check the neighbors at iMaxScoreIndex-1 and iMaxScoreIndex+1 as well
+                // if (bSubPixelEstimation && iLayer == 0 && 
+                //     iMaxScoreIndex != 0 && iMaxScoreIndex != 2 &&
+                //     !vecNewMatchParameter[iMaxScoreIndex - 1].bPosOnBorder && 
+                //     !vecNewMatchParameter[iMaxScoreIndex].bPosOnBorder &&
+                //     !vecNewMatchParameter[iMaxScoreIndex + 1].bPosOnBorder)
                 {
                     double dNewX = 0, dNewY = 0, dNewAngle = 0;
-                    SubPixEsimation(&vecNewMatchParameter, &dNewX, &dNewY, &dNewAngle, dAngleStep, iMaxScoreIndex);
+                    SubPixEstimation(&vecNewMatchParameter, &dNewX, &dNewY, &dNewAngle, dAngleStep, iMaxScoreIndex);
                     vecNewMatchParameter[iMaxScoreIndex].pt = Point2d(dNewX, dNewY);
                     vecNewMatchParameter[iMaxScoreIndex].dMatchAngle = dNewAngle;
                 }
@@ -905,7 +915,7 @@ std::vector<RotationPatternMatcherResults> RotatedPatternMatcher::search(cv::Mat
         sstm.ptLB = Point2d(sstm.ptLT.x + iH * sin(dRAngle), sstm.ptLT.y + iH * cos(dRAngle));
         sstm.ptRB = Point2d(sstm.ptRT.x + iH * sin(dRAngle), sstm.ptRT.y + iH * cos(dRAngle));
         sstm.ptCenter = Point2d((sstm.ptLT.x + sstm.ptRT.x + sstm.ptRB.x + sstm.ptLB.x) / 4, (sstm.ptLT.y + sstm.ptRT.y + sstm.ptRB.y + sstm.ptLB.y) / 4);
-        sstm.dMatchedAngle = -vecAllResult[i].dMatchAngle;
+        sstm.dMatchedAngle = vecAllResult[i].dMatchAngle;
         sstm.dMatchScore = vecAllResult[i].dMatchScore;
 
         if (sstm.dMatchedAngle < -180)
