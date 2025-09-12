@@ -352,7 +352,7 @@ inline int _mm_hsum_epi32(__m128i V) // V3 V2 V1 V0
 // <param name="Kernel">需要卷積的核矩陣。 </param>
 // <param name="Conv">卷積矩陣。 </param>
 // <param name="Length">矩陣所有元素的長度。 </param>
-inline int IM_Conv_SIMD(unsigned char *pCharKernel, unsigned char *pCharConv, int iLength)
+inline int IM_Conv_SIMD(const unsigned char *pCharKernel, const unsigned char *pCharConv, int iLength)
 {
     const int iBlockSize = 16, Block = iLength / iBlockSize;
     __m128i SumV = _mm_setzero_si128();
@@ -375,7 +375,7 @@ inline int IM_Conv_SIMD(unsigned char *pCharKernel, unsigned char *pCharConv, in
     }
     return Sum;
 }
-void CCOEFF_Denominator(cv::Mat &matSrc, s_TemplData *pTemplData, cv::Mat &matResult, int iLayer)
+void CCOEFF_Denominator(const cv::Mat &matSrc, const s_TemplData *pTemplData, cv::Mat &matResult, int iLayer)
 {
     if (pTemplData->vecResultEqual1[iLayer])
     {
@@ -449,7 +449,7 @@ void CCOEFF_Denominator(cv::Mat &matSrc, s_TemplData *pTemplData, cv::Mat &matRe
 }
 // #define ORG
 
-void MatchTemplate(cv::Mat &matSrc, s_TemplData *pTemplData, cv::Mat &matResult, int iLayer, bool bUseSIMD)
+void MatchTemplate(const cv::Mat &matSrc, const s_TemplData *pTemplData, cv::Mat &matResult, int iLayer, bool bUseSIMD)
 {
     if (matSrc.rows < pTemplData->vecPyramid[iLayer].rows || matSrc.cols < pTemplData->vecPyramid[iLayer].cols)
     {
@@ -464,7 +464,7 @@ void MatchTemplate(cv::Mat &matSrc, s_TemplData *pTemplData, cv::Mat &matResult,
         matResult.create(matSrc.rows - pTemplData->vecPyramid[iLayer].rows + 1,
                          matSrc.cols - pTemplData->vecPyramid[iLayer].cols + 1, CV_32FC1);
         matResult.setTo(0);
-        cv::Mat &matTemplate = pTemplData->vecPyramid[iLayer];
+        const cv::Mat &matTemplate = pTemplData->vecPyramid[iLayer];
 
         int t_r_end = matTemplate.rows, t_r = 0;
         size_t sstep = matSrc.step1();
@@ -472,12 +472,11 @@ void MatchTemplate(cv::Mat &matSrc, s_TemplData *pTemplData, cv::Mat &matResult,
         for (int r = 0; r < matResult.rows; r++)
         {
             float *r_matResult = matResult.ptr<float>(r);
-            uchar *r_source = matSrc.ptr<uchar>(r);
-            uchar *r_template, *r_sub_source;
+            const uchar * r_source = matSrc.ptr<uchar>(r);
             for (int c = 0; c < matResult.cols; ++c, ++r_matResult, ++r_source)
             {
-                r_template = matTemplate.ptr<uchar>();
-                r_sub_source = r_source;
+                const uchar* r_template = matTemplate.ptr<uchar>();
+                const uchar* r_sub_source = r_source;
                 for (t_r = 0; t_r < t_r_end; ++t_r, r_sub_source += sstep, r_template += step)
                 {
                     *r_matResult = *r_matResult + IM_Conv_SIMD(r_template, r_sub_source, matTemplate.cols);
@@ -496,7 +495,7 @@ void MatchTemplate(cv::Mat &matSrc, s_TemplData *pTemplData, cv::Mat &matResult,
 
     CCOEFF_Denominator(matSrc, pTemplData, matResult, iLayer);
 }
-void GetRotatedROI(Mat &matSrc, Size size, Point2f ptLT, double dAngle, Mat &matROI)
+void GetRotatedROI(const Mat &matSrc, Size size, Point2f ptLT, double dAngle, const Mat &matROI)
 {
     double dAngle_radian = dAngle * D2R;
     Point2f ptC((matSrc.cols - 1) / 2.0f, (matSrc.rows - 1) / 2.0f);
@@ -749,57 +748,57 @@ std::vector<RotationPatternMatcherResults> RotatedPatternMatcher::search(cv::Mat
     bool bSubPixelEstimation = true; // m_bSubPixel.GetCheck();
     int iStopLayer = 0;
     // int iSearchSize = min (m_iMaxPos + MATCH_CANDIDATE_NUM, (int)vecMatchParameter.size ());//可能不需要搜尋到全部 太浪費時間
-    vector<s_MatchParameter> vecAllResult;
-#pragma omp parallel for
-    for (int i = 0; i < (int)vecMatchParameter.size(); i++)
-    // for (int i = 0; i < iSearchSize; i++)
-    {
-        // std::cout << "vecMatchParameter[i].dMatchScore: " << i << " " << vecMatchParameter[i].dMatchScore << std::endl;
-        Mat matResult, matRotatedSrc;
-        double dRAngle = -vecMatchParameter[i].dMatchAngle * D2R;
-        Point2f ptLT = ptRotatePt2f(vecMatchParameter[i].pt, ptCenter, dRAngle);
 
-        double dAngleStep = atan(2.0 / max(iDstW, iDstH)) * R2D; // min改為max
-        vecMatchParameter[i].dAngleStart = vecMatchParameter[i].dMatchAngle - dAngleStep;
-        vecMatchParameter[i].dAngleEnd = vecMatchParameter[i].dMatchAngle + dAngleStep;
+    int search_size = (int)vecMatchParameter.size();
+    std::vector<s_MatchParameter> potentialResults(search_size);
+    std::vector<char> hasResult(search_size, 0); // Use char for bool to be safe with some compilers/omp versions
+
+#pragma omp parallel for
+    for (int i = 0; i < search_size; i++)
+    {
+        s_MatchParameter currentMatch = vecMatchParameter[i];
+
+        // std::cout << "vecMatchParameter[i].dMatchScore: " << i << " " << currentMatch.dMatchScore << std::endl;
+        double dRAngle = -currentMatch.dMatchAngle * D2R;
+        Point2f ptLT = ptRotatePt2f(currentMatch.pt, ptCenter, dRAngle);
 
         if (iTopLayer <= iStopLayer)
         {
-            vecMatchParameter[i].pt = Point2d(ptLT * ((iTopLayer == 0) ? 1 : 2));
-#pragma omp critical
-            {
-                vecAllResult.push_back(vecMatchParameter[i]);
-            }
+            currentMatch.pt = Point2d(ptLT * ((iTopLayer == 0) ? 1 : 2));
+            potentialResults[i] = currentMatch;
+            hasResult[i] = 1;
         }
         else
         {
             for (int iLayer = iTopLayer - 1; iLayer >= iStopLayer; iLayer--)
             {
                 // 搜尋角度
-                dAngleStep = atan(2.0 / max(pTemplData->vecPyramid[iLayer].cols, pTemplData->vecPyramid[iLayer].rows)) * R2D; // min改為max
+                double dAngleStep = atan(2.0 / max(pTemplData->vecPyramid[iLayer].cols, pTemplData->vecPyramid[iLayer].rows)) * R2D; // min改為max
                 vector<double> vecAngles;
-                // double dAngleS = vecMatchParameter[i].dAngleStart, dAngleE = vecMatchParameter[i].dAngleEnd;
-                double dMatchedAngle = vecMatchParameter[i].dMatchAngle;
+                double dMatchedAngle = currentMatch.dMatchAngle;
                 if (m_dMinAngle == 0 && m_dMaxAngle == 0)
                 {
                     vecAngles.push_back(0.0);
                 }
                 else
                 {
-                    for (int i = -1; i <= 1; i++)
-                        vecAngles.push_back(dMatchedAngle + dAngleStep * i);
+                    for (int k = -1; k <= 1; k++) // Corrected loop variable to avoid shadowing outer loop's 'i'
+                        vecAngles.push_back(dMatchedAngle + dAngleStep * k);
                 }
                 Point2f ptSrcCenter((vecMatSrcPyr[iLayer].cols - 1) / 2.0f, (vecMatSrcPyr[iLayer].rows - 1) / 2.0f);
-                iSize = (int)vecAngles.size();
+                int iSize = (int)vecAngles.size();
                 vector<s_MatchParameter> vecNewMatchParameter(iSize);
                 int iMaxScoreIndex = 0;
                 double dBigValue = -1;
                 //std::cout << "iLayer: " << iLayer << " iSize: " << iSize << std::endl;
+                auto templateSize = pTemplData->vecPyramid[iLayer].size();
+                Mat matRotatedSrc(templateSize.height + 6, templateSize.width + 6, CV_8UC1);
+                Mat matResult;
                 for (int j = 0; j < iSize; j++)
                 {
                     double dMaxValue = 0;
                     Point ptMaxLoc;
-                    GetRotatedROI(vecMatSrcPyr[iLayer], pTemplData->vecPyramid[iLayer].size(), ptLT * 2, vecAngles[j], matRotatedSrc);
+                    GetRotatedROI(vecMatSrcPyr[iLayer], templateSize, ptLT * 2, vecAngles[j], matRotatedSrc);
                     // imwrite(string_format("K:\\prj\\orange\\trunk\\vision\\VisionLib\\VisionTest\\bin\\Debug\\images\\%i_%.3f.png", iLayer, vecAngles[j]), matRotatedSrc);
                     MatchTemplate(matRotatedSrc, pTemplData, matResult, iLayer, true);
                     // matchTemplate (matRotatedSrc, pTemplData->vecPyramid[iLayer], matResult, CV_TM_CCOEFF_NORMED);
@@ -826,12 +825,12 @@ std::vector<RotationPatternMatcherResults> RotatedPatternMatcher::search(cv::Mat
                     break;
                 // 次像素估計
                 if (bSubPixelEstimation && iLayer == 0 && (!vecNewMatchParameter[iMaxScoreIndex].bPosOnBorder) && iMaxScoreIndex != 0 && iMaxScoreIndex != 2)
-             // We need to check the neighbors at iMaxScoreIndex-1 and iMaxScoreIndex+1 as well
-                // if (bSubPixelEstimation && iLayer == 0 && 
-                //     iMaxScoreIndex != 0 && iMaxScoreIndex != 2 &&
-                //     !vecNewMatchParameter[iMaxScoreIndex - 1].bPosOnBorder && 
-                //     !vecNewMatchParameter[iMaxScoreIndex].bPosOnBorder &&
-                //     !vecNewMatchParameter[iMaxScoreIndex + 1].bPosOnBorder)
+                    // We need to check the neighbors at iMaxScoreIndex-1 and iMaxScoreIndex+1 as well
+                       // if (bSubPixelEstimation && iLayer == 0 && 
+                       //     iMaxScoreIndex != 0 && iMaxScoreIndex != 2 &&
+                       //     !vecNewMatchParameter[iMaxScoreIndex - 1].bPosOnBorder && 
+                       //     !vecNewMatchParameter[iMaxScoreIndex].bPosOnBorder &&
+                       //     !vecNewMatchParameter[iMaxScoreIndex + 1].bPosOnBorder)
                 {
                     double dNewX = 0, dNewY = 0, dNewAngle = 0;
                     SubPixEstimation(&vecNewMatchParameter, &dNewX, &dNewY, &dNewAngle, dAngleStep, iMaxScoreIndex);
@@ -850,23 +849,31 @@ std::vector<RotationPatternMatcherResults> RotatedPatternMatcher::search(cv::Mat
 
                 if (iLayer == iStopLayer)
                 {
-                    vecNewMatchParameter[iMaxScoreIndex].pt = pt * (iStopLayer == 0 ? 1 : 2);
-#pragma omp critical
-                    {
-                        vecAllResult.push_back(vecNewMatchParameter[iMaxScoreIndex]);
-                    }
+                    s_MatchParameter finalMatch = vecNewMatchParameter[iMaxScoreIndex];
+                    finalMatch.pt = pt * (iStopLayer == 0 ? 1 : 2);
+                    potentialResults[i] = finalMatch;
+                    hasResult[i] = 1;
                 }
                 else
                 {
                     // 更新MatchAngle ptLT
-                    vecMatchParameter[i].dMatchAngle = dNewMatchAngle;
-                    vecMatchParameter[i].dAngleStart = vecMatchParameter[i].dMatchAngle - dAngleStep / 2;
-                    vecMatchParameter[i].dAngleEnd = vecMatchParameter[i].dMatchAngle + dAngleStep / 2;
+                    currentMatch.dMatchAngle = dNewMatchAngle;
                     ptLT = pt;
                 }
             }
         }
     }
+
+    vector<s_MatchParameter> vecAllResult;
+    vecAllResult.reserve(search_size);
+    for (int i = 0; i < search_size; i++)
+    {
+        if (hasResult[i])
+        {
+            vecAllResult.push_back(potentialResults[i]);
+        }
+    }
+
     std::cout << "time 2a: " << timer.elapsed() << std::endl;
     FilterWithScore(&vecAllResult, m_dScore);
     std::cout << "FilterWithScore vecAllResult.size (): " << vecAllResult.size() << std::endl;
