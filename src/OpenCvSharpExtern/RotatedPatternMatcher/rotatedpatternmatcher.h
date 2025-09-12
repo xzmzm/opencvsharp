@@ -218,7 +218,7 @@ struct RotationPatternMatcherResults
 class RotatedPatternMatcher
 {
 public:
-	RotatedPatternMatcher() : m_iMaxPos(1), m_dMaxOverlap(0.5), m_dScore(0.8),
+	RotatedPatternMatcher() : m_iMaxPos(1), m_iMatchCandidateNum(5), m_dMaxOverlap(0.5), m_dScore(0.8),
 								  m_dMinAngle(-180), m_dMaxAngle(180), m_dAngleStep(1),
 								  m_iPyramidLevels(4), m_iMessageCount(0),
 								  m_dSrcScale(1.0), m_dDstScale(1.0)
@@ -230,6 +230,7 @@ public:
 	void setAngleRange(double minAngle, double maxAngle, double angleStep);
 
 	int m_iMaxPos;
+	int m_iMatchCandidateNum;
 	double m_dMaxOverlap;
 	double m_dScore = 0.8;
 	double m_dMinAngle;
@@ -269,13 +270,14 @@ rotatedPatternMatcher_RotatedPatternMatcher_teach(RotatedPatternMatcher *obj, cv
 	END_WRAP
 }
 CVAPI(ExceptionStatus)
-rotatedPatternMatcher_RotatedPatternMatcher_search(RotatedPatternMatcher *obj, cv::Mat *image, double acceptanceScore, double minAngle, double maxAngle, double angleStep, int maxMatchCount, double maxOverlapRatio, RotationPatternMatcherResults **results, int *resultsLength)
+rotatedPatternMatcher_RotatedPatternMatcher_search(RotatedPatternMatcher *obj, cv::Mat *image, double acceptanceScore, double minAngle, double maxAngle, double angleStep, int maxMatchCount, double maxOverlapRatio, int matchCandidateCount, RotationPatternMatcherResults **results, int *resultsLength)
 {
 	BEGIN_WRAP
 	obj->m_dScore = acceptanceScore * 0.01;
 	obj->setAngleRange(minAngle, maxAngle, angleStep);
 	obj->m_iMaxPos = maxMatchCount;
 	obj->m_dMaxOverlap = maxOverlapRatio;
+	obj->m_iMatchCandidateNum = matchCandidateCount;
 	auto r = obj->search(image);
 	RotationPatternMatcherResults *pr = (RotationPatternMatcherResults *)CoTaskMemAlloc(sizeof(RotationPatternMatcherResults) * r.size());
 	// std::copy(r.data(), r.data() + r.size(), pr);

@@ -61,6 +61,9 @@ namespace OpenCvSharpEx.Sample
 
         [Description("The number of pyramid levels to use for matching. Higher values are faster but less accurate for small patterns.")]
         public int PyramidLevels { get; set; } = 4;
+
+        [Description("Number of extra candidates to consider during the search at the coarsest pyramid level. Higher values might find more matches at the cost of performance.")]
+        public int MatchCandidateCount { get; set; } = 5;
     }
 
     public partial class Form1 : Form
@@ -247,7 +250,8 @@ namespace OpenCvSharpEx.Sample
                             this.rotatedPatternMatcherSettings.MaxAngle,
                             this.rotatedPatternMatcherSettings.AngleStep,
                             this.rotatedPatternMatcherSettings.MaxMatchCount,
-                            this.rotatedPatternMatcherSettings.MaxOverlapRatio);
+                            this.rotatedPatternMatcherSettings.MaxOverlapRatio,
+                            this.rotatedPatternMatcherSettings.MatchCandidateCount);
                         sw.Stop();
 
                         if (this.lastRotatedSearchResult != null && this.lastRotatedSearchResult.Length > 0)

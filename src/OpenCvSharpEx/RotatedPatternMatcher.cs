@@ -35,13 +35,14 @@ namespace OpenCvSharpEx
             double maxAngle,
             double angleStep,
             int maxMatchCount,
-            double maxOverlapRatio)
+            double maxOverlapRatio,
+            int matchCandidateCount)
         {
             if (this.rotatedPatternMatcherObj == IntPtr.Zero)
                 throw new OpenCvSharpException("No pattern is taught yet.");
 
             var ret = NativeMethods.rotatedPatternMatcher_RotatedPatternMatcher_search(
-                this.rotatedPatternMatcherObj, image.CvPtr, acceptanceScore, minAngle, maxAngle, angleStep, maxMatchCount, maxOverlapRatio,
+                this.rotatedPatternMatcherObj, image.CvPtr, acceptanceScore, minAngle, maxAngle, angleStep, maxMatchCount, maxOverlapRatio, matchCandidateCount,
                 out IntPtr results, out int resultsLength);
 
             var r = new RotationPatternMatcherResults[resultsLength];

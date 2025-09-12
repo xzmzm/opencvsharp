@@ -55,7 +55,7 @@ namespace OpenCvSharpEx.Internal
         [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern ExceptionStatus rotatedPatternMatcher_RotatedPatternMatcher_teach(IntPtr shapeMatcherObj, IntPtr pattern, int pyramidLevels);
         [Pure, DllImport(DllExtern, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-        public static extern ExceptionStatus rotatedPatternMatcher_RotatedPatternMatcher_search(IntPtr shapeMatcherObj, IntPtr image, double acceptancePercentage, double minAngle, double maxAngle, double angleStep, int maxMatchCount, double maxOverlapRatio,
+        public static extern ExceptionStatus rotatedPatternMatcher_RotatedPatternMatcher_search(IntPtr shapeMatcherObj, IntPtr image, double acceptancePercentage, double minAngle, double maxAngle, double angleStep, int maxMatchCount, double maxOverlapRatio, int matchCandidateCount,
             out IntPtr rotationPatternMatcherResults, out int rotationPatternMatcherResultsLength);
     }
 

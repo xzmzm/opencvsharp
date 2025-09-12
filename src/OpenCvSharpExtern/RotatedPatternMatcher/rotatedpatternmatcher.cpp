@@ -6,7 +6,6 @@
 #define VISION_TOLERANCE 0.0000001
 #define D2R (CV_PI / 180.0)
 #define R2D (180.0 / CV_PI)
-#define MATCH_CANDIDATE_NUM 5
 
 #define SUBITEM_INDEX 0
 #define SUBITEM_SCORE 1
@@ -674,7 +673,7 @@ std::vector<RotationPatternMatcherResults> RotatedPatternMatcher::search(cv::Mat
             // #pragma omp critical
             {
                 vecMatchParameter.push_back(s_MatchParameter(Point2f(ptMaxLoc.x - fTranslationX, ptMaxLoc.y - fTranslationY), dMaxVal, vecAngles[i]));
-                for (int j = 0; j < m_iMaxPos + MATCH_CANDIDATE_NUM - 1; j++)
+                for (int j = 0; j < m_iMaxPos + m_iMatchCandidateNum - 1; j++)
                 {
                     ptMaxLoc = GetNextMaxLoc(matResult, ptMaxLoc, pTemplData->vecPyramid[iTopLayer].size(), dValue, m_dMaxOverlap, blockMax);
                     if (dMaxVal < vecLayerScore[iTopLayer])
@@ -691,7 +690,7 @@ std::vector<RotationPatternMatcherResults> RotatedPatternMatcher::search(cv::Mat
             // #pragma omp critical
             {
                 vecMatchParameter.push_back(s_MatchParameter(Point2f(ptMaxLoc.x - fTranslationX, ptMaxLoc.y - fTranslationY), dMaxVal, vecAngles[i]));
-                for (int j = 0; j < m_iMaxPos + MATCH_CANDIDATE_NUM - 1; j++)
+                for (int j = 0; j < m_iMaxPos + m_iMatchCandidateNum - 1; j++)
                 {
                     ptMaxLoc = GetNextMaxLoc(matResult, ptMaxLoc, pTemplData->vecPyramid[iTopLayer].size(), dValue, m_dMaxOverlap);
                     if (dMaxVal < vecLayerScore[iTopLayer])
